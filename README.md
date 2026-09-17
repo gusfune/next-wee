@@ -19,4 +19,4 @@ Node 22 or newer. Works under npm, pnpm, yarn and bun.
 
 ## Commands
 
-See [AGENTS.md](./AGENTS.md) for the command list and flags, and [PLAN.md](./PLAN.md) for what ships in each phase.
+See [AGENTS.md](./AGENTS.md) for the command list and flags, [PLAN.md](./PLAN.md) for what ships in each phase, and [ROADMAP.md](./ROADMAP.md) for postponed work and known issues.

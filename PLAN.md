@@ -1,6 +1,6 @@
 # Plan
 
-Delivery plan for `next-wee`, from `next-cli-spec.md` (draft 2). One phase at a time. The code of each phase gets a review before the next phase starts. Tick a box when the step is merged.
+Delivery plan for `next-wee`, from `next-cli-spec.md` (draft 2). One phase at a time. The code of each phase gets a review before the next phase starts. Tick a box when the step is merged. Deferred items and known issues go to ROADMAP.md.
 
 ## Decisions
 
