@@ -7,8 +7,10 @@
 import {
   cpSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -101,7 +103,8 @@ const tables = async (): Promise<string[]> => {
   }
 }
 
-beforeAll(() => {
+/** Copies the single-repo fixture to a scratch dir and enters it. */
+const enterApp = (): void => {
   app = mkdtempSync(join(tmpdir(), "wee-db-"))
   cpSync(join(fixtures, "single-repo"), app, { recursive: true })
   // The generated app resolves drizzle, better-sqlite3 and vitest from wee's own tree.
@@ -109,14 +112,32 @@ beforeAll(() => {
   writeFileSync(join(app, ".env"), "DATABASE_URL=./local.sqlite\n")
   originalCwd = process.cwd()
   process.chdir(app)
-})
+}
 
-afterAll(() => {
+const leaveApp = (): void => {
   process.chdir(originalCwd)
   rmSync(app, { recursive: true, force: true })
-})
+}
 
 describe("phase 1 on sqlite", () => {
+  beforeAll(enterApp)
+  afterAll(leaveApp)
+
+  it("db commands and generators refuse to run before db:init", async () => {
+    const results = [
+      await run(dbMigrate, []),
+      await run(dbStatus, []),
+      await run(model, ["Post", "title:string"]),
+      await run(migration, ["AddTitleToPosts", "title:string"]),
+      await run(validator, ["Post", "title:string"]),
+    ]
+    for (const { exit, err } of results) {
+      expect(exit).toBe(1)
+      expect(err).toContain("db-not-initialised")
+    }
+    expect(has("src/db")).toBe(false)
+  })
+
   it("db:init writes the drizzle scaffold and config", async () => {
     const { exit, err } = await run(dbInit, [
       "--adapter=drizzle",
@@ -139,6 +160,15 @@ describe("phase 1 on sqlite", () => {
     )
     expect(read(".env.example")).toContain("DATABASE_URL=./local.sqlite")
     expect(read(".gitignore")).toContain("*.sqlite")
+    // --skip-install left package.json without drizzle-orm; add what install would have.
+    const pkg = JSON.parse(read("package.json")) as {
+      dependencies: Record<string, string>
+    }
+    pkg.dependencies["drizzle-orm"] = "0.45.2"
+    writeFileSync(
+      join(app, "package.json"),
+      `${JSON.stringify(pkg, null, 2)}\n`
+    )
   })
 
   it("db:init refuses to run twice without --force", async () => {
@@ -148,6 +178,21 @@ describe("phase 1 on sqlite", () => {
     ])
     expect(exit).toBe(1)
     expect(err).toContain("db-already-initialised")
+  })
+
+  it("db commands refuse to run when the scaffold is missing", async () => {
+    renameSync(
+      join(app, "drizzle.config.ts"),
+      join(app, "drizzle.config.ts.bak")
+    )
+    const { exit, err } = await run(dbStatus, [])
+    renameSync(
+      join(app, "drizzle.config.ts.bak"),
+      join(app, "drizzle.config.ts")
+    )
+    expect(exit).toBe(1)
+    expect(err).toContain("db-not-ready")
+    expect(err).toContain("drizzle.config.ts")
   })
 
   it("g model writes model, validator, service and migration", async () => {
@@ -327,5 +372,82 @@ describe("phase 1 on sqlite", () => {
     expect(has("src/db/schema/posts.ts")).toBe(false)
     expect(read("src/db/schema/index.ts")).not.toContain("posts")
     expect(has("src/db/migrations/meta/_journal.json")).toBe(false)
+  })
+})
+
+describe("db:init adopts an existing Drizzle setup", () => {
+  const existingConfig = `import { defineConfig } from "drizzle-kit"
+
+export default defineConfig({
+  dialect: "sqlite",
+  schema: "./src/db/schema/*",
+  out: "./drizzle",
+  dbCredentials: { url: process.env.DATABASE_URL ?? "" },
+})
+`
+  const existingModel = `import { sqliteTable, text } from "drizzle-orm/sqlite-core"
+
+export const users = sqliteTable("users", { id: text("id").primaryKey() })
+`
+
+  beforeAll(() => {
+    enterApp()
+    writeFileSync(join(app, "drizzle.config.ts"), existingConfig)
+    mkdirSync(join(app, "src/db/schema"), { recursive: true })
+    writeFileSync(join(app, "src/db/schema/users.ts"), existingModel)
+    writeFileSync(
+      join(app, "src/db/schema/index.ts"),
+      'export * from "./users"\n'
+    )
+    const pkg = JSON.parse(read("package.json")) as {
+      dependencies: Record<string, string>
+    }
+    pkg.dependencies["drizzle-orm"] = "0.45.2"
+    writeFileSync(
+      join(app, "package.json"),
+      `${JSON.stringify(pkg, null, 2)}\n`
+    )
+  })
+  afterAll(leaveApp)
+
+  it("rejects a --provider that contradicts the config file", async () => {
+    const { exit, err } = await run(dbInit, [
+      "--provider=postgres",
+      "--skip-install",
+    ])
+    expect(exit).toBe(1)
+    expect(err).toContain("provider-mismatch")
+  })
+
+  it("records the dialect and paths and keeps existing files", async () => {
+    const { exit, err, out } = await run(dbInit, ["--skip-install"])
+    expect(err).toBe("")
+    expect(exit).toBe(0)
+    expect(JSON.parse(read(".app/config.json")).db).toEqual({
+      adapter: "drizzle",
+      provider: "sqlite",
+      schemaDir: "db/schema",
+      migrationsDir: "../drizzle",
+    })
+    expect(read("drizzle.config.ts")).toBe(existingConfig)
+    expect(read("src/db/schema/users.ts")).toBe(existingModel)
+    expect(read("src/db/schema/index.ts")).toBe('export * from "./users"\n')
+    expect(has("src/db/client.ts")).toBe(true)
+    expect(has("src/db/seed.ts")).toBe(true)
+    const rows = JSON.parse(out) as Array<{ path: string }>
+    expect(rows.map((row) => row.path)).not.toContain("drizzle.config.ts")
+  })
+
+  it("g model then db:migrate uses the adopted directories", async () => {
+    expect((await run(model, ["Post", "title:string"])).exit).toBe(0)
+    expect(has("src/db/schema/posts.ts")).toBe(true)
+    expect(read("src/db/schema/index.ts")).toContain('export * from "./posts"')
+    expect(has("drizzle/0000_create_posts.sql")).toBe(true)
+    // The first migration captures the adopted schema too.
+    expect(read("drizzle/0000_create_posts.sql")).toContain(
+      "CREATE TABLE `users`"
+    )
+    expect((await run(dbMigrate, [])).exit).toBe(0)
+    expect(await tables()).toEqual(["__drizzle_migrations", "posts", "users"])
   })
 })

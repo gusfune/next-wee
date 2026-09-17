@@ -6,6 +6,14 @@ How `db:init`, `g model`, `g migration` and the `db:*` commands fit together. On
 
 `db:init --adapter=drizzle --provider=<postgres|sqlite|mysql>` writes `drizzle.config.ts`, `src/db/client.ts`, `src/db/schema/index.ts`, `src/db/seed.ts` and `src/db/seeds/README.md`. It records `db: { adapter, provider, schemaDir, migrationsDir }` in `.app/config.json`, adds `db:*` scripts to `package.json`, injects `DATABASE_URL` into `.env.example` and installs `drizzle-orm`, the driver, `zod`, `server-only` and `drizzle-kit` (plus `tsx` when the package manager is not bun). `--skip-install` writes the files only.
 
+## Guard
+
+Every `db:*` command except `db:init`, and every model generator, calls `assertDbReady` first. It fails with `db-not-initialised` when `.app/config.json` has no `db` section, and with `db-not-ready` when the section exists but `drizzle.config.ts`, the schema directory or `drizzle-orm` in `package.json` is missing. Nothing runs against the database before that check passes.
+
+## Adopting an existing setup
+
+When `drizzle.config.{ts,mts,js,mjs}` already exists, `db:init` adopts it. `adopt.ts` reads `dialect`, `schema` and `out` from the file with regular expressions (the file is never executed). `schema` must be a directory or a directory glob; the recorded `schemaDir` and `migrationsDir` are relative to the source dir, so a root-level `./drizzle` becomes `../drizzle`. Init then writes only what is missing: config, scripts, client, schema barrel, seed runner. Existing files are never touched and packages already in `package.json` are not reinstalled. A `--provider` that contradicts the config dialect fails with `provider-mismatch`. The first `g model` after adoption produces a migration that covers the adopted tables too, because drizzle-kit has no earlier snapshot.
+
 ## Generators
 
 `g model Post title:string body:text:optional` parses attributes with `src/lib/attributes.ts`, then asks the adapter for four groups of changes: the model file plus an `export *` block in `schema/index.ts`, the Zod validator plus its Vitest test, the CRUD service, and the `create_posts` migration. `--skip-migration` drops the last group.

@@ -4,9 +4,10 @@
  * through a manifest and then installs packages.
  */
 
+import { detectDrizzleConfig } from "../adapters/drizzle/adopt.js"
 import { drizzleAdapter } from "../adapters/drizzle/index.js"
 import { getDbAdapter } from "../adapters/index.js"
-import type { DbProvider } from "../core/adapters.js"
+import type { DbProvider, InitOptions } from "../core/adapters.js"
 import type { CommandResult } from "../core/command.js"
 import { defineWeeCommand } from "../core/command.js"
 import type { Context } from "../core/context.js"
@@ -41,12 +42,13 @@ const dbInitGenerator = defineGenerator({
     },
     provider: {
       type: "string",
-      description: "postgres | sqlite | mysql",
-      default: "postgres",
+      description:
+        "postgres | sqlite | mysql (default postgres, or the dialect of an existing drizzle.config)",
     },
     "skip-install": {
       type: "boolean",
-      description: "Write files, do not install packages",
+      description:
+        "Write files only. db commands stay blocked until drizzle-orm is installed",
       default: false,
     },
   },
@@ -65,12 +67,43 @@ const dbInitGenerator = defineGenerator({
         `${ctx.configPath} already has a db section. Pass --force to overwrite.`
       )
     }
-    const result = await drizzleAdapter.init(ctx, {
-      provider: parseProvider(args.provider),
-    })
+    const result = await drizzleAdapter.init(
+      ctx,
+      initOptions(ctx, args.provider)
+    )
     return result.changes
   },
 })
+
+/**
+ * Fresh app: the flag or postgres. Existing `drizzle.config.*`: adopt its
+ * dialect and paths; a conflicting `--provider` is an error, not a rewrite.
+ */
+const initOptions = (
+  ctx: Context,
+  providerFlag: string | undefined
+): InitOptions => {
+  const existing = detectDrizzleConfig(ctx.target.path)
+  if (existing === undefined) {
+    return { provider: parseProvider(providerFlag ?? "postgres") }
+  }
+  if (
+    providerFlag !== undefined &&
+    parseProvider(providerFlag) !== existing.provider
+  ) {
+    throw new WeeError(
+      "provider-mismatch",
+      `${existing.file} uses ${existing.provider}; --provider=${providerFlag} does not match.`
+    )
+  }
+  return {
+    provider: existing.provider,
+    adopt: {
+      schemaDir: existing.schemaDir,
+      migrationsDir: existing.migrationsDir,
+    },
+  }
+}
 
 const dbInit = defineWeeCommand({
   meta: { name: "db:init", description: dbInitGenerator.description },
@@ -82,17 +115,22 @@ const dbInit = defineWeeCommand({
     }
     // The generator already validated the provider; recompute the package
     // lists from the adapter so they stay in one place.
-    const { dependencies, devDependencies } = await drizzleAdapter.init(ctx, {
-      provider: parseProvider(args.provider),
-    })
+    const { dependencies, devDependencies } = await drizzleAdapter.init(
+      ctx,
+      initOptions(ctx, args.provider)
+    )
     await installPackages({ ctx, dependencies, devDependencies })
     const rows = Array.isArray(result.data) ? result.data : [result.data]
     return {
       ...result,
       data: [
         ...rows,
-        { action: "install", path: dependencies.join(" ") },
-        { action: "install:dev", path: devDependencies.join(" ") },
+        ...(dependencies.length > 0
+          ? [{ action: "install", path: dependencies.join(" ") }]
+          : []),
+        ...(devDependencies.length > 0
+          ? [{ action: "install:dev", path: devDependencies.join(" ") }]
+          : []),
       ],
     }
   },

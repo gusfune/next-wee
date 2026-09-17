@@ -13,6 +13,8 @@ Work we postponed on purpose, and issues we found and did not fix in the phase t
 | Seed runner in a monorepo with pnpm or yarn | Phase 1 | `tsx` is installed per app; not verified in `fixtures/pnpm-mono`. | Phase 3 (resource app) |
 | `g migration` for renames and type changes | Phase 1 | Only `AddXToY`, `RemoveXFromY` and custom. Rename needs a different model edit and drizzle-kit prompts on ambiguity. | Phase 4 or on request |
 | Composite indexes and `references` with `onDelete` other than restrict | Phase 1 | Attribute grammar has one column per index. Decision table fixes restrict. | On request |
+| Adoption of a Drizzle config that uses a `schema` array, a single schema file or a computed value | Phase 1 | `adopt.ts` reads string literals only and needs a schema directory for the barrel. Fails with `drizzle-config-unsupported` and names the fix. | On request |
+| Adoption of a client that does not live at `src/db/client.ts` | Phase 1 | Generated services import `../db/client`. Adoption creates that file when missing; an app with a client elsewhere gets two clients until the user points one at the other. Needs a `clientPath` config field. | Phase 3 |
 | Manifest args for `--force` regeneration of validator and service | Phase 1 | A `--force` run writes `modify` changes; `destroy` restores the previous file, which is the older generated version. Acceptable for now. | Phase 6 |
 
 ## Known issues

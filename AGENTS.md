@@ -25,7 +25,7 @@ Exit code is non-zero on the first error. In `--json` mode the CLI never prompts
 | `wee about` | Versions and the resolved target. Run this first to confirm the target. |
 | `wee init` | Writes `.app/config.json` and `CONVENTIONS.md` into the target app. |
 | `wee destroy <generator> <Name>` | Reverses a generator run from `.app/manifests/<generator>-<name>.json`. |
-| `wee db:init --adapter=drizzle [--provider=postgres\|sqlite\|mysql] [--skip-install]` | Drizzle config, client, schema index, seed runner; installs packages. |
+| `wee db:init --adapter=drizzle [--provider=postgres\|sqlite\|mysql] [--skip-install]` | Drizzle config, client, schema index, seed runner; installs packages. Adopts an existing `drizzle.config.*` and writes only what is missing. Every other `db:*` command and `g model` refuse to run until this has run. |
 | `wee g model <Name> <attr:type[:modifier]...> [--skip-migration]` | Model, schema export, validator + test, service, migration. |
 | `wee g migration <AddXToY\|RemoveXFromY\|Name> [attrs...]` | Edits the model and writes up + down SQL. Other names give a custom migration. |
 | `wee g validator <Name> [attrs...]`, `wee g service <Name> [attrs...]` | Standalone; reuse the `g model` manifest when attrs are omitted. |

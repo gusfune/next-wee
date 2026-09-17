@@ -5,7 +5,7 @@
  * driver. See docs/database-flow.md for the end-to-end flow.
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs"
-import { join } from "node:path"
+import { join, relative } from "node:path"
 import { x } from "tinyexec"
 import type {
   DbAdapter,
@@ -101,11 +101,19 @@ const createOrReplace = (
 
 const init = async (ctx: Context, opts: InitOptions): Promise<InitResult> => {
   const src = sourceDir(ctx)
+  const target = ctx.target.path
+  // Config paths are relative to the source dir; adopted paths are relative to the app.
   const db = {
     adapter: "drizzle" as const,
     provider: opts.provider,
-    schemaDir: "db/schema",
-    migrationsDir: "db/migrations",
+    schemaDir:
+      opts.adopt === undefined
+        ? "db/schema"
+        : relative(src, opts.adopt.schemaDir),
+    migrationsDir:
+      opts.adopt === undefined
+        ? "db/migrations"
+        : relative(src, opts.adopt.migrationsDir),
   }
   const paths = {
     src,
@@ -113,16 +121,20 @@ const init = async (ctx: Context, opts: InitOptions): Promise<InitResult> => {
     migrationsDir: join(src, db.migrationsDir),
   }
   const configPath = join(CONFIG_DIR, CONFIG_FILE)
-  const existingConfig = readIfExists(join(ctx.target.path, configPath))
+  const existingConfig = readIfExists(join(target, configPath))
   const config = {
     ...(existingConfig === undefined
       ? { router: ctx.config.router, srcDir: ctx.config.srcDir }
       : (JSON.parse(existingConfig) as Record<string, unknown>)),
     db,
   }
-  const pkgPath = join(ctx.target.path, "package.json")
+  const pkgPath = join(target, "package.json")
   const pkgText = readFileSync(pkgPath, "utf8")
-  const pkg = JSON.parse(pkgText) as { scripts?: Record<string, string> }
+  const pkg = JSON.parse(pkgText) as {
+    scripts?: Record<string, string>
+    dependencies?: Record<string, string>
+    devDependencies?: Record<string, string>
+  }
   const scripts = { ...pkg.scripts }
   for (const script of DB_SCRIPTS) {
     scripts[script] = `wee ${script}`
@@ -130,50 +142,52 @@ const init = async (ctx: Context, opts: InitOptions): Promise<InitResult> => {
   const appName = kebabCase(
     ctx.target.name === "root" ? "app" : ctx.target.name
   ).replace(/-/g, "_")
+  // Files that already exist are kept as they are. That is what makes
+  // adopting an existing Drizzle setup safe; on a fresh app nothing exists.
+  const createIfMissing = (path: string, content: string): FileChange[] =>
+    existsSync(join(target, path)) ? [] : [{ kind: "create", path, content }]
   const changes: FileChange[] = [
     {
       kind: existingConfig === undefined ? "create" : "modify",
       path: configPath,
       content: `${JSON.stringify(config, null, 2)}\n`,
     },
-    {
-      kind: "create",
-      path: "drizzle.config.ts",
-      content: drizzleConfigTemplate(opts.provider, paths),
-    },
-    {
-      kind: "create",
-      path: join(src, "db/client.ts"),
-      content: clientTemplate(opts.provider),
-    },
-    {
-      kind: "create",
-      path: join(paths.schemaDir, "index.ts"),
-      content: schemaIndexTemplate(),
-    },
-    {
-      kind: "create",
-      path: join(src, "db/seed.ts"),
-      content: seedRunnerTemplate(),
-    },
-    {
-      kind: "create",
-      path: join(src, "db/seeds/README.md"),
-      content: seedsReadmeTemplate(),
-    },
+    ...createIfMissing(
+      "drizzle.config.ts",
+      drizzleConfigTemplate(opts.provider, paths)
+    ),
+    ...createIfMissing(
+      join(src, "db/client.ts"),
+      clientTemplate(opts.provider)
+    ),
+    ...createIfMissing(
+      join(paths.schemaDir, "index.ts"),
+      schemaIndexTemplate()
+    ),
+    ...createIfMissing(join(src, "db/seed.ts"), seedRunnerTemplate()),
+    ...createIfMissing(join(src, "db/seeds/README.md"), seedsReadmeTemplate()),
     {
       kind: "modify",
       path: "package.json",
       content: `${JSON.stringify({ ...pkg, scripts }, null, detectIndent(pkgText))}\n`,
     },
-    {
+  ]
+  if (
+    !(readIfExists(join(target, ".env.example")) ?? "").includes(
+      "DATABASE_URL="
+    )
+  ) {
+    changes.push({
       kind: "inject",
       path: ".env.example",
       marker: "db",
       content: `DATABASE_URL=${DEFAULT_URL[opts.provider](appName)}`,
-    },
-  ]
-  if (opts.provider === "sqlite") {
+    })
+  }
+  if (
+    opts.provider === "sqlite" &&
+    !(readIfExists(join(target, ".gitignore")) ?? "").includes("*.sqlite")
+  ) {
     changes.push({
       kind: "inject",
       path: ".gitignore",
@@ -181,13 +195,24 @@ const init = async (ctx: Context, opts: InitOptions): Promise<InitResult> => {
       content: "*.sqlite",
     })
   }
+  const missing = (names: string[]): string[] =>
+    names.filter(
+      (name) =>
+        pkg.dependencies?.[name] === undefined &&
+        pkg.devDependencies?.[name] === undefined
+    )
   return {
     changes,
-    dependencies: ["drizzle-orm", DRIVER[opts.provider], "zod", "server-only"],
-    devDependencies: [
+    dependencies: missing([
+      "drizzle-orm",
+      DRIVER[opts.provider],
+      "zod",
+      "server-only",
+    ]),
+    devDependencies: missing([
       "drizzle-kit",
       ...(ctx.repo.packageManager === "bun" ? [] : ["tsx"]),
-    ],
+    ]),
   }
 }
 

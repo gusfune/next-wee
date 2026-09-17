@@ -46,6 +46,11 @@ type DbProvider = "postgres" | "sqlite" | "mysql"
 
 interface InitOptions {
   provider: DbProvider
+  /** Paths of a setup that exists already. Init then adopts it and writes only what is missing. */
+  adopt?: {
+    schemaDir: string
+    migrationsDir: string
+  }
 }
 
 interface InitResult {
