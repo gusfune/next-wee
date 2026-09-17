@@ -1,0 +1,1 @@
+{ "router": "app", "srcDir": true, "db": { "adapter": "drizzle", "schemaDir": "db/schema", "migrationsDir": "db/migrations" } }
