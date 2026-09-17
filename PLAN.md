@@ -43,15 +43,15 @@ Acceptance: `wee about` runs in a single repo and in a Turborepo and reports the
 
 Acceptance: `g model` then `db:migrate` produces a queryable table and a passing validator test.
 
-- [ ] Attribute parser `name:type[:modifier...]` and the type map (Drizzle, Zod)
-- [ ] `DbAdapter` Drizzle implementation
-- [ ] `db:init --adapter=drizzle [--provider]` (installs through the detected package manager)
-- [ ] `db:generate`, `db:migrate`, `db:rollback`, `db:status`
-- [ ] `db:push` (local and preview only), `db:seed`, `db:seed:replant`
-- [ ] `db:prepare`, `db:reset` (refuses in production), `db:studio`, `db:console`
-- [ ] `g model` (model, schema index export, validator, service, migration, validator test)
-- [ ] `g migration` with Rails-style name parsing
-- [ ] `g validator`, `g service`
+- [x] Attribute parser `name:type[:modifier...]` and the type map (Drizzle, Zod)
+- [x] `DbAdapter` Drizzle implementation
+- [x] `db:init --adapter=drizzle [--provider]` (installs through the detected package manager)
+- [x] `db:generate`, `db:migrate`, `db:rollback`, `db:status`
+- [x] `db:push` (local and preview only), `db:seed`, `db:seed:replant`
+- [x] `db:prepare`, `db:reset` (refuses in production), `db:studio`, `db:console`
+- [x] `g model` (model, schema index export, validator, service, migration, validator test)
+- [x] `g migration` with Rails-style name parsing
+- [x] `g validator`, `g service`
 - [ ] Phase review
 
 ## Phase 2: Routes and UI

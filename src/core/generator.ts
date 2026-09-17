@@ -48,9 +48,13 @@ const runGenerator = async <T extends ArgsDef>(
     changes,
     dryRun: ctx.flags.dryRun,
   })
-  const recordedArgs = Object.fromEntries(
-    Object.entries(args).filter(([key]) => key !== "_")
-  )
+  // Positionals are kept so later generators (validator, service) can reuse
+  // the attribute list a model was created with.
+  const positional = (args as ParsedArgs)._
+  const recordedArgs = {
+    ...Object.fromEntries(Object.entries(args).filter(([key]) => key !== "_")),
+    ...(positional.length > 0 ? { positional } : {}),
+  }
   writeManifest({
     targetPath: ctx.target.path,
     generator: generator.name,

@@ -25,7 +25,15 @@ Exit code is non-zero on the first error. In `--json` mode the CLI never prompts
 | `wee about` | Versions and the resolved target. Run this first to confirm the target. |
 | `wee init` | Writes `.app/config.json` and `CONVENTIONS.md` into the target app. |
 | `wee destroy <generator> <Name>` | Reverses a generator run from `.app/manifests/<generator>-<name>.json`. |
-| `wee g <generator> ...` | Generators. Phase 1 onwards. |
+| `wee db:init --adapter=drizzle [--provider=postgres\|sqlite\|mysql] [--skip-install]` | Drizzle config, client, schema index, seed runner; installs packages. |
+| `wee g model <Name> <attr:type[:modifier]...> [--skip-migration]` | Model, schema export, validator + test, service, migration. |
+| `wee g migration <AddXToY\|RemoveXFromY\|Name> [attrs...]` | Edits the model and writes up + down SQL. Other names give a custom migration. |
+| `wee g validator <Name> [attrs...]`, `wee g service <Name> [attrs...]` | Standalone; reuse the `g model` manifest when attrs are omitted. |
+| `wee db:generate [--name]`, `db:migrate`, `db:rollback [--step=n]`, `db:status` | Migration lifecycle. Rollback runs `<tag>.down.sql`. |
+| `wee db:push`, `db:seed [--file]`, `db:seed:replant [--file]` | Push is local/preview only. Seeds live in `src/db/seeds/`. |
+| `wee db:prepare`, `db:reset`, `db:studio`, `db:console` | Create + migrate + seed; reset refuses in production. |
+
+Attribute types: `string text integer decimal boolean datetime uuid json enum[a,b] references`. Modifiers: `unique index optional default=<v>`. See `docs/database-flow.md` for the end-to-end flow.
 
 ## Conventions
 

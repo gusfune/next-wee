@@ -3,6 +3,7 @@ import { x } from "tinyexec"
 import { defineWeeCommand } from "../core/command.js"
 import type { PackageJson } from "../core/repo.js"
 import { readPackageJson } from "../core/repo.js"
+import { appEnv } from "../lib/env.js"
 
 const TRACKED_PACKAGES = [
   "next",
@@ -51,7 +52,7 @@ const about = defineWeeCommand({
         db: ctx.config.db?.adapter ?? null,
         auth: ctx.config.auth?.provider ?? null,
         jobs: ctx.config.jobs?.provider ?? null,
-        appEnv: process.env.APP_ENV ?? "local",
+        appEnv: appEnv(),
         ...versions,
       },
     }

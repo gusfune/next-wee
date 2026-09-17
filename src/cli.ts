@@ -15,6 +15,19 @@ const main = defineCommand({
     destroy: () => import("./commands/destroy.js").then((m) => m.destroy),
     g: () => import("./commands/g/index.js").then((m) => m.g),
     generate: () => import("./commands/g/index.js").then((m) => m.g),
+    "db:init": () => import("./commands/db.js").then((m) => m.dbInit),
+    "db:generate": () => import("./commands/db.js").then((m) => m.dbGenerate),
+    "db:migrate": () => import("./commands/db.js").then((m) => m.dbMigrate),
+    "db:rollback": () => import("./commands/db.js").then((m) => m.dbRollback),
+    "db:status": () => import("./commands/db.js").then((m) => m.dbStatus),
+    "db:push": () => import("./commands/db.js").then((m) => m.dbPush),
+    "db:seed": () => import("./commands/db.js").then((m) => m.dbSeed),
+    "db:seed:replant": () =>
+      import("./commands/db.js").then((m) => m.dbSeedReplant),
+    "db:prepare": () => import("./commands/db.js").then((m) => m.dbPrepare),
+    "db:reset": () => import("./commands/db.js").then((m) => m.dbReset),
+    "db:studio": () => import("./commands/db.js").then((m) => m.dbStudio),
+    "db:console": () => import("./commands/db.js").then((m) => m.dbConsole),
   },
 })
 

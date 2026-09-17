@@ -14,6 +14,9 @@
   "engines": {
     "node": ">=22"
   },
+  "trustedDependencies": [
+    "better-sqlite3"
+  ],
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
@@ -35,6 +38,9 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.12",
     "@types/node": "22.20.2",
+    "better-sqlite3": "13.0.3",
+    "drizzle-kit": "0.31.10",
+    "drizzle-orm": "0.45.2",
     "tsdown": "0.23.0",
     "typescript": "7.0.2",
     "vitest": "5.0.0"
