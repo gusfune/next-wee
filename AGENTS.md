@@ -1,6 +1,73 @@
-# Agent guide
+# AGENTS.md
 
-`wee` is a CLI for Next.js App Router apps. Coding agents use it instead of writing boilerplate by hand.
+Guide for coding agents and people working on `next-wee` or using it inside a Next.js app. The first half explains the project; the second half is the command reference for an app that has `wee` installed.
+
+## What this is
+
+`next-wee` is a CLI (`wee`, alias `we`) for Next.js App Router apps. It generates the files an app needs, reverses every run, and wraps the daily commands behind one tool: models and migrations, pages, forms, server actions, jobs, emails, auth, database lifecycle, dev, build, test, ci and encrypted credentials. It runs on Node 22+ under npm, pnpm, yarn and bun, in a single repo, a workspace or a Turborepo.
+
+## The idea
+
+Rails made a generation of developers fast because `rails generate` and `rails db:migrate` gave every app the same shape. Next.js has no equivalent: each app writes its own scaffolding, and a coding agent writes it again for each task, token by token. `wee` moves that work into deterministic generators, so one command yields a typed, tested, conventional result and an agent spends its tokens on the part that is specific to the app.
+
+Three rules follow from that:
+
+- Every run is reversible. A generator returns a list of file changes; the CLI applies them and records a manifest under `.app/manifests/`, and `wee destroy <generator> <Name>` takes the run back, including blocks injected into shared files.
+- Every command is scriptable. `--dry-run` prints the plan, `--json` prints machine-readable rows and never prompts, and errors carry a stable code.
+- Conventions live in the app. `wee init` writes `CONVENTIONS.md` and `.app/config.json`; generators read them, and an app extends the CLI with its own generators and tasks under `tools/` without forking it.
+
+## How a command runs
+
+1. `src/cli.ts` builds the citty command map from `src/commands/builtins.ts`. When the first token is not a built-in, `src/lib/custom.ts` scans the target's `tools/tasks/` and adds those as commands.
+2. `defineWeeCommand` in `src/core/command.ts` parses the global flags and builds a `Context` (`src/core/context.ts`): repo shape (`src/core/repo.ts`), target workspace (`src/core/workspace.ts`), merged config (`src/core/config.ts`) and app layout.
+3. A generator (`defineGenerator` in `src/core/generator.ts`) turns its args into `FileChange[]` (`src/core/changes.ts`: create, modify, ensure, inject, delete). It reads templates from `src/templates/` and never touches the disk itself.
+4. `runGenerator` applies the changes (or describes them under `--dry-run`), writes the manifest (`src/core/manifest.ts`) and returns rows that `src/core/output.ts` prints as a table or JSON. Injections use `wee:begin <id>` / `wee:end <id>` markers (`src/core/inject.ts`).
+5. Database work goes through a `DbAdapter` (`src/core/adapters.ts`; Drizzle and Prisma under `src/adapters/`). Commands that must run inside the app (console, runner, tasks, ci config, custom generators) spawn a child through `runScript` in `src/lib/packages.ts` with the scripts under `src/runtime/`, bundled to `dist/runtime/`.
+6. Custom generators in `tools/generators/<name>/index.ts` run in that child and send their `FileChange[]` back; the CLI validates and applies them like a built-in, so they inherit the global flags and `destroy`. `src/index.ts` exports the public types (`GeneratorDef`, `TaskContext`, `FileChange`, `Context`).
+
+Each flow has one document under `docs/`: `database-flow.md`, `routes-ui-flow.md`, `resource-flow.md`, `auth-jobs-mail-flow.md`, `operations-flow.md`, `extensibility-flow.md`.
+
+## Repo layout
+
+| Path | Contents |
+|---|---|
+| `src/cli.ts`, `src/index.ts` | Entry point; public types |
+| `src/core/` | Context, config, changes, inject, manifest, generator contract, output, errors |
+| `src/commands/` | One file per command; `g/` holds the generators |
+| `src/adapters/` | Drizzle and Prisma `DbAdapter` implementations |
+| `src/templates/` | File templates as functions returning strings |
+| `src/lib/` | Attribute grammar, inflection, segments, package manager and script runners, extension discovery |
+| `src/runtime/` | Scripts that run inside the target app |
+| `test/` | Vitest suites; each phase has an acceptance test that scaffolds a scratch app from `fixtures/` |
+| `fixtures/` | Repo shapes (single repo, pnpm workspace, Turborepo, Pages Router); never add `node_modules` to them |
+| `docs/` | One flow document per phase |
+| `ROADMAP.md` | Postponed work and known issues, with the reason for each |
+
+## Working on this repo
+
+```
+bun install
+bun run typecheck
+bun run lint
+bun run test
+bun run build      # dist/cli.js, dist/index.d.ts, dist/runtime/*
+bun run format     # last, before handing off
+```
+
+`WEE_E2E=1 bun run test` also runs the Playwright step of `wee ci` in the operations test; it needs a Chromium build (`bunx playwright install chromium`).
+
+Rules:
+
+- TypeScript, strict, no `any`. Named exports at the end of the file, arrow functions, `import type` for types. Biome owns formatting: no semicolons, double quotes, 2 spaces.
+- A generator is pure: it returns changes and does not write. New file kinds go through `FileChange`; new shared-file edits go through `inject` with a marker, so `destroy` stays complete.
+- Every command supports `--dry-run` and `--json`. Every generator run has a manifest. Every changed behaviour has a test in `test/` that scaffolds from a fixture.
+- One flow document per feature area in `docs/`; do not spread explanations across inline comments. Comments explain why, not what.
+- Deferred items and known issues go to `ROADMAP.md` with the reason and a target.
+- Commits: Conventional Commits with a Gitmoji after the colon (`feat(g): ✨ add g task`), one logical change each. Pull requests target `staging`.
+
+## Using wee in an app
+
+Coding agents use `wee` instead of writing boilerplate by hand. `wee new <name>` writes an `AGENTS.md` and `CONVENTIONS.md` into the app with this reference.
 
 ## Invocation
 
@@ -62,15 +129,3 @@ Attribute types: `string text integer decimal boolean datetime uuid json enum[a,
 `CONVENTIONS.md` in the target app is the source of truth for paths and decisions. Read it before you write code by hand. Prefer a generator when one exists. Run `wee ci` before you hand off.
 
 Generated blocks inside existing files sit between `wee:begin <id>` and `wee:end <id>` comments. Do not edit inside those markers. `destroy` removes them.
-
-## Development of this repo
-
-```
-bun install
-bun run typecheck
-bun run lint
-bun run test
-bun run build      # dist/cli.js
-```
-
-`bun run format` before handing off. Fixtures under `fixtures/` are repo shapes used by the tests; do not add `node_modules` to them. `WEE_E2E=1 bun run test` also runs the Playwright step of `wee ci` in the acceptance test; it needs a Chromium build (`bunx playwright install chromium`).
