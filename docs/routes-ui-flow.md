@@ -52,9 +52,11 @@ survives until both the form and the action runs are gone.
 
 ## Generated tests
 
-Component, form, hook, helper and provider runs write a Vitest test next
-to the file. The React tests render with `react-dom/server` so the app
-needs no testing library. They are `.tsx` files, so the app's Vitest must
+Component, form, hook, helper, provider and handler runs write a Vitest
+test next to the file. The React tests render with `react-dom/server` so
+the app needs no testing library. The handler test calls the exported
+methods directly with a stub `NextRequest` (`{ json }`), so it needs no
+server either. The React tests are `.tsx` files, so the app's Vitest must
 compile JSX: `"jsx": "react-jsx"` in `tsconfig.json` is enough for Vite.
 
 ## Checked in CI

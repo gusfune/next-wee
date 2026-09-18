@@ -209,6 +209,78 @@ const handlerTemplate = (options: HandlerOptions): string => {
   return lines.join("\n")
 }
 
+/** Params literal for the test, e.g. `{ id: "1", slug: ["a", "b"] }`. */
+const testParams = (segment: Segment): string =>
+  `{ ${segment.params
+    .map((param) =>
+      param.kind === "single"
+        ? `${param.name}: "1"`
+        : `${param.name}: ["a", "b"]`
+    )
+    .join(", ")} }`
+
+/** Expected status of one handler call: the success status per method. */
+const successStatus = (method: HttpMethod): number => {
+  if (method === "POST") {
+    return 201
+  }
+  if (method === "DELETE") {
+    return 204
+  }
+  return 200
+}
+
+const handlerTestTemplate = (options: HandlerOptions): string => {
+  const { segment, methods } = options
+  const hasParams = segment.params.length > 0
+  const hasBody = methods.some((method) => BODY_METHODS.has(method))
+  const needsStub = hasParams || hasBody
+  const context = hasParams
+    ? `, { params: Promise.resolve(${testParams(segment)}) }`
+    : ""
+  const call = (method: HttpMethod, body?: string): string =>
+    hasParams || BODY_METHODS.has(method)
+      ? `${method}(nextRequest(${body ?? ""})${context})`
+      : `${method}()`
+  const lines: string[] = ['import { describe, expect, it } from "vitest"']
+  if (needsStub) {
+    lines.push('import type { NextRequest } from "next/server"')
+  }
+  lines.push(`import { ${methods.join(", ")} } from "./route"`, "")
+  if (needsStub) {
+    lines.push(
+      "const nextRequest = (body?: unknown): NextRequest =>",
+      "  ({ json: () => Promise.resolve(body) }) as NextRequest",
+      ""
+    )
+  }
+  for (const method of methods) {
+    const cases: string[] = []
+    if (BODY_METHODS.has(method)) {
+      cases.push(
+        `  it("rejects an invalid body", async () => {`,
+        `    const response = await ${call(method, "null")}`,
+        `    expect(response.status).toBe(400)`,
+        `  })`,
+        ""
+      )
+    }
+    cases.push(
+      `  it("answers ${successStatus(method)}", async () => {`,
+      `    const response = await ${BODY_METHODS.has(method) ? call(method, "{}") : call(method)}`,
+      `    expect(response.status).toBe(${successStatus(method)})`,
+      `  })`
+    )
+    lines.push(
+      `describe("${method} ${segment.url}", () => {`,
+      ...cases,
+      "})",
+      ""
+    )
+  }
+  return lines.join("\n")
+}
+
 const sitemapTemplate = (segment: Segment): string =>
   `/** Sitemap for ${segment.staticUrl}. Add one entry per public URL. */
 import type { MetadataRoute } from "next"
@@ -279,6 +351,7 @@ export {
   errorTemplate,
   HTTP_METHODS,
   handlerTemplate,
+  handlerTestTemplate,
   isHttpMethod,
   layoutTemplate,
   loadingTemplate,

@@ -217,11 +217,15 @@ describe("phase 2 routes and ui", () => {
     expect(read("src/app/(marketing)/layout.tsx")).toContain("children")
   })
 
-  it("g handler writes route.ts with the given methods", async () => {
+  it("g handler writes route.ts with the given methods and a test", async () => {
     await ok(handler, ["api/posts", "--methods=GET,POST"])
     const file = read("src/app/api/posts/route.ts")
     expect(file).toContain("export { GET, POST }")
     expect(file).toContain("bodySchema")
+    const test = read("src/app/api/posts/route.test.ts")
+    expect(test).toContain('import { GET, POST } from "./route"')
+    expect(test).toContain("expect(response.status).toBe(400)")
+    expect(test).toContain("expect(response.status).toBe(201)")
     const { exit, err } = await run(handler, ["api/x", "--methods=FETCH"])
     expect(exit).toBe(1)
     expect(err).toContain("invalid-method")
@@ -335,11 +339,13 @@ describe("phase 2 routes and ui", () => {
     const { output, exitCode } = await exec([
       join(app, "node_modules/vitest/vitest.mjs"),
       "run",
+      "--no-color",
+      "src/app",
       "src/components",
       "src/hooks",
       "src/lib",
     ])
-    expect(output).toContain("Test Files  6 passed")
+    expect(output).toContain("Test Files  7 passed")
     expect(exitCode).toBe(0)
   }, 60_000)
 

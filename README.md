@@ -62,7 +62,7 @@ Attribute types: `string text integer decimal boolean datetime uuid json enum[a,
 | Command | Outcome |
 |---|---|
 | `wee g page <segment> [--layout] [--skip-loading] [--skip-error]` | `page.tsx`, `loading.tsx`, `error.tsx` and optional `layout.tsx`. Segments take `[id]`, `[...slug]`, `[[...slug]]` and `(group)`. |
-| `wee g layout <segment>`, `g handler <segment> [--methods=GET,POST]`, `g metadata <segment> [--sitemap] [--og]` | Layout; `route.ts` with typed methods and a Zod body schema; sitemap and Open Graph image. |
+| `wee g layout <segment>`, `g handler <segment> [--methods=GET,POST]`, `g metadata <segment> [--sitemap] [--og]` | Layout; `route.ts` with typed methods, a Zod body schema and a test; sitemap and Open Graph image. |
 | `wee g component <Name> [--area] [--client]`, `g hook <useName>`, `g helper <name> [--shared]`, `g provider <Name>`, `g type <Name> [members...]` | Each writes its file and a Vitest test. `--shared` targets a shared package. |
 | `wee g action <segment> <name...>` | Server actions in `app/<segment>/actions.ts`; `create`, `update` and `remove` bind to the segment's model. |
 | `wee g form <Model>` | Client form bound to the create and update actions. |

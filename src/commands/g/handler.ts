@@ -1,4 +1,4 @@
-/** `wee g handler <segment> [--methods=GET,POST]`: a route handler with typed methods. */
+/** `wee g handler <segment> [--methods=GET,POST]`: a route handler with typed methods and a test. */
 import { join } from "node:path"
 import { defineWeeCommand } from "../../core/command.js"
 import { assertAppRouter } from "../../core/context.js"
@@ -9,6 +9,7 @@ import type { HttpMethod } from "../../templates/routes.js"
 import {
   HTTP_METHODS,
   handlerTemplate,
+  handlerTestTemplate,
   isHttpMethod,
 } from "../../templates/routes.js"
 import { create, segmentDir } from "./paths.js"
@@ -36,7 +37,7 @@ const parseMethods = (raw: string): HttpMethod[] => {
 
 const handlerGenerator = defineGenerator({
   name: "handler",
-  description: "Route handler (route.ts) with the given methods",
+  description: "Route handler (route.ts) with the given methods and a test",
   args: {
     ...segmentArg,
     methods: {
@@ -50,11 +51,17 @@ const handlerGenerator = defineGenerator({
     assertAppRouter(ctx)
     const segment = parseSegment(args.segment)
     const methods = parseMethods(args.methods)
+    const options = { segment, methods }
     return [
       create(
         ctx,
         join(segmentDir(ctx, segment), "route.ts"),
-        handlerTemplate({ segment, methods })
+        handlerTemplate(options)
+      ),
+      create(
+        ctx,
+        join(segmentDir(ctx, segment), "route.test.ts"),
+        handlerTestTemplate(options)
       ),
     ]
   },
