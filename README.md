@@ -76,7 +76,7 @@ Attribute types: `string text integer decimal boolean datetime uuid json enum[a,
 |---|---|
 | `wee g auth [--provider=better-auth\|placeholder]` | Better Auth models, migration, server and client setup, API route and sign-in page; or a placeholder with a fixed user outside production. |
 | `wee g auth:provider <Name>` | Adds a social provider and its env keys. |
-| `wee g job <Name>` | Inngest function with a test, registered in `jobs/index.ts`. |
+| `wee g job <Name>` | Job function with a test, registered in `jobs/index.ts`. |
 | `wee g email <Name>`, `wee mail:preview` | React Email component with a test and Resend setup; the React Email dev server. |
 
 ### Run and check

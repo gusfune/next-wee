@@ -1,33 +1,23 @@
 /**
- * `wee g job <Name>`: an Inngest function in `jobs/<name>.ts` with a test,
- * registered in `jobs/index.ts`. The first run also writes the client, the
- * `/api/inngest` route, the env keys and `jobs.provider` in the config.
+ * `wee g job <Name>`: a plain job function in `jobs/<name>.ts` with a test,
+ * registered in `jobs/index.ts`.
  */
 import { defineWeeCommand } from "../../core/command.js"
-import { appSlug, assertAppRouter } from "../../core/context.js"
+import { assertAppRouter } from "../../core/context.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
 import {
-  inngestClientTemplate,
   JOBS_ANCHORS,
-  JOBS_ENV,
   jobNames,
   jobsIndexTemplate,
-  jobsRouteTemplate,
   jobTemplate,
   jobTestTemplate,
 } from "../../templates/jobs.js"
-import { assertBlockAbsent, create, relativeImport, srcPath } from "./paths.js"
-import {
-  configPatch,
-  envExampleChanges,
-  installRows,
-  rowsOf,
-  skipInstallArg,
-} from "./setup.js"
+import { assertBlockAbsent, create, srcPath } from "./paths.js"
+import { installRows, rowsOf, skipInstallArg } from "./setup.js"
 
 const jobGenerator = defineGenerator({
   name: "job",
-  description: "Inngest job with a test, registered at /api/inngest",
+  description: "Job function with a test, registered in jobs/index.ts",
   args: {
     name: {
       type: "positional",
@@ -40,28 +30,13 @@ const jobGenerator = defineGenerator({
   run: async (ctx, args) => {
     assertAppRouter(ctx)
     const names = jobNames(args.name)
-    const client = srcPath(ctx, "lib", "inngest.ts")
     const index = srcPath(ctx, "jobs", "index.ts")
-    const route = srcPath(ctx, "app", "api", "inngest", "route.ts")
     const file = srcPath(ctx, "jobs", `${names.file}.ts`)
     const marker = `job-${names.file}`
     assertBlockAbsent(ctx, index, marker)
     return [
-      {
-        kind: "ensure",
-        path: client,
-        content: inngestClientTemplate(appSlug(ctx)),
-      },
       { kind: "ensure", path: index, content: jobsIndexTemplate() },
-      {
-        kind: "ensure",
-        path: route,
-        content: jobsRouteTemplate({
-          clientImport: relativeImport(route, client),
-          jobsImport: relativeImport(route, index),
-        }),
-      },
-      create(ctx, file, jobTemplate(names, relativeImport(file, client))),
+      create(ctx, file, jobTemplate(names)),
       create(
         ctx,
         srcPath(ctx, "jobs", `${names.file}.test.ts`),
@@ -71,20 +46,16 @@ const jobGenerator = defineGenerator({
         kind: "inject",
         path: index,
         marker: `${marker}-import`,
-        content: `import { ${names.job} } from "./${names.file}"`,
+        content: `import { ${names.fn} } from "./${names.file}"`,
         after: JOBS_ANCHORS.imports,
       },
       {
         kind: "inject",
         path: index,
         marker,
-        content: `  ${names.job},`,
+        content: `  ${names.fn},`,
         after: JOBS_ANCHORS.list,
       },
-      ...envExampleChanges(ctx, "jobs", JOBS_ENV),
-      ...(ctx.config.jobs === undefined
-        ? [configPatch(ctx, { jobs: { provider: "inngest" } })]
-        : []),
     ]
   },
 })
@@ -96,7 +67,7 @@ const job = defineWeeCommand({
     const result = await runGenerator({ ctx, generator: jobGenerator, args })
     const extra = await installRows({
       ctx,
-      dependencies: ["inngest", "zod"],
+      dependencies: ["zod"],
       devDependencies: [],
       skipInstall: args["skip-install"],
     })

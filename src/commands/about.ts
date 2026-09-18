@@ -10,7 +10,6 @@ const TRACKED_PACKAGES = [
   "react",
   "drizzle-orm",
   "prisma",
-  "inngest",
   "better-auth",
 ] as const
 
@@ -46,7 +45,6 @@ const about = defineWeeCommand({
         srcDir: ctx.config.srcDir,
         db: ctx.config.db?.adapter ?? null,
         auth: ctx.config.auth?.provider ?? null,
-        jobs: ctx.config.jobs?.provider ?? null,
         appEnv: appEnv(),
         ...versions,
       },

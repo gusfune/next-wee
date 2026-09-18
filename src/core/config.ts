@@ -21,7 +21,6 @@ const appConfigSchema = z.object({
   srcDir: z.boolean().optional(),
   db: dbConfigSchema.optional(),
   auth: z.object({ provider: z.string() }).optional(),
-  jobs: z.object({ provider: z.string() }).optional(),
 })
 
 type AppConfigInput = z.input<typeof appConfigSchema>

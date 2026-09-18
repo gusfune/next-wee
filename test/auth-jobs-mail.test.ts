@@ -1,8 +1,8 @@
 /**
  * Phase 4 acceptance for the generators on top of the resource app:
  * `g auth --provider=better-auth` signs a user up and in through the
- * runner, `g auth:provider` adds a social provider, `g job` registers an
- * Inngest function, `g email` renders, everything typechecks and the
+ * runner, `g auth:provider` adds a social provider, `g job` registers a
+ * job function, `g email` renders, everything typechecks and the
  * generated unit tests pass. `destroy` reverses each run.
  */
 import {
@@ -171,7 +171,6 @@ const cli = (args: string[]): Promise<Exec> =>
 
 const config = (): {
   auth?: { provider: string }
-  jobs?: { provider: string }
 } => JSON.parse(read(".app/config.json"))
 
 describe("phase 4 auth, jobs and mail", () => {
@@ -275,30 +274,29 @@ describe("phase 4 auth, jobs and mail", () => {
     expect(again.err).toContain("block-exists")
   })
 
-  it("g job writes the function, registers it and wires the route", async () => {
+  it("g job writes the function and registers it", async () => {
     await ok(job, ["SendWelcome", "--skip-install"])
     await ok(job, ["Nightly", "--skip-install"])
     for (const file of [
-      "src/lib/inngest.ts",
       "src/jobs/index.ts",
       "src/jobs/send-welcome.ts",
       "src/jobs/send-welcome.test.ts",
       "src/jobs/nightly.ts",
-      "src/app/api/inngest/route.ts",
+      "src/jobs/nightly.test.ts",
     ]) {
       expect(has(file), file).toBe(true)
     }
+    expect(has("src/lib/inngest.ts")).toBe(false)
+    expect(has("src/app/api/inngest/route.ts")).toBe(false)
     const index = read("src/jobs/index.ts")
-    expect(index).toContain('import { sendWelcomeJob } from "./send-welcome"')
-    expect(index).toContain("  sendWelcomeJob,")
-    expect(index).toContain("  nightlyJob,")
-    expect(index).toContain("const functions: InngestFunction.Any[] = [")
-    expect(read("src/lib/inngest.ts")).toContain('id: "app"')
+    expect(index).toContain('import { sendWelcome } from "./send-welcome"')
+    expect(index).toContain("  sendWelcome,")
+    expect(index).toContain("  nightly,")
+    expect(index).toContain("const jobs = [")
     expect(read("src/jobs/send-welcome.ts")).toContain(
-      'event: "app/send-welcome"'
+      "const sendWelcome = async ("
     )
-    expect(read(".env.example")).toContain("INNGEST_SIGNING_KEY=")
-    expect(config().jobs).toEqual({ provider: "inngest" })
+    expect(read(".env.example")).not.toContain("INNGEST")
     await ok(destroy, ["job", "Nightly"])
     expect(has("src/jobs/nightly.ts")).toBe(false)
     expect(read("src/jobs/index.ts")).not.toContain("nightly")
@@ -330,6 +328,7 @@ describe("phase 4 auth, jobs and mail", () => {
     const { output, exitCode } = await exec([
       join(app, "node_modules/vitest/vitest.mjs"),
       "run",
+      "--no-color",
       "src/components/auth",
       "src/jobs",
       "src/emails",
@@ -374,4 +373,3 @@ describe("phase 4 auth, jobs and mail", () => {
     expect(tree()).toEqual(baseline)
   })
 })
-      "--no-color",

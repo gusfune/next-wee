@@ -44,7 +44,6 @@ The CLI reads it before it generates code. Edit the values here, not the CLI.
 | Test placement | beside the source |
 | Database adapter | ${config.db?.adapter ?? "not set (run `wee db:init`)"} |
 | Auth provider | ${config.auth?.provider ?? "not set (run `wee g auth`)"} |
-| Jobs provider | ${config.jobs?.provider ?? "not set"} |
 
 ## Rules
 

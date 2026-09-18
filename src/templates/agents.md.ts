@@ -23,7 +23,7 @@ This app is driven by the \`wee\` CLI. Use a generator before you write boilerpl
 | \`${wee} g resource <Name> <attr:type...>\` | Model, migration, validator, service, actions, form, pages, nav link, e2e test |
 | \`${wee} g model <Name> <attr:type...>\` | Model, schema export, validator, service, migration |
 | \`${wee} g page <segment>\`, \`g layout\`, \`g handler\`, \`g component\`, \`g action\`, \`g form\` | Route and UI files with tests |
-| \`${wee} g auth\`, \`g job\`, \`g email\`, \`g env\`, \`g proxy\` | Auth, Inngest jobs, React Email, env vars, request interceptors |
+| \`${wee} g auth\`, \`g job\`, \`g email\`, \`g env\`, \`g proxy\` | Auth, jobs, React Email, env vars, request interceptors |
 | \`${wee} db:migrate\`, \`db:status\`, \`db:rollback\`, \`db:prepare\`, \`db:reset\` | Migration lifecycle |
 | \`${wee} dev\`, \`build\`, \`start\`, \`lint\`, \`typecheck\`, \`test\`, \`test:e2e\`, \`ci\` | Run and check the app |
 | \`${wee} creds:edit --env=<name>\`, \`creds:show\`, \`creds:sync --target=vercel\` | Encrypted credentials in \`config/credentials/\` |

@@ -43,9 +43,6 @@ const packageDir = (targetPath: string, name: string): string => {
   return dir
 }
 
-const hasPackage = (targetPath: string, name: string): boolean =>
-  findPackageDir(targetPath, name) !== undefined
-
 /** Path of a package's binary. `bin` names it when it differs from the package, e.g. `email` in `react-email`. */
 const packageBin = (targetPath: string, name: string, bin = name): string => {
   const dir = packageDir(targetPath, name)
@@ -237,7 +234,6 @@ export type { RunBinResult, RunScriptResult, RunToolResult }
 export {
   bunVersion,
   findPackageDir,
-  hasPackage,
   importFromTarget,
   installPackages,
   missingPackages,

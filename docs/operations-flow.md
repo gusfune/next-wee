@@ -59,7 +59,7 @@ printed, or the failure is reported as `{"error":{"code":"<step>-failed",
 | `typecheck` | `next typegen` (apps only), then `tsc --noEmit -p .`. |
 | `test [path] [--watch]` | `vitest run [path]` or `vitest watch [path]`. |
 | `test:e2e [--headed]` | Writes `playwright.config.ts` when missing, runs `db:prepare` when a `db` section exists, then `playwright test`. |
-| `dev [--port]` | `db:prepare` when a `db` section exists, the Inngest dev server when `jobs.provider` is `inngest` and `inngest-cli` is installed, then `next dev`. The jobs server is killed when `next dev` exits. |
+| `dev [--port]` | `db:prepare` when a `db` section exists, then `next dev`. |
 | `build` | `typecheck`, then `next build`. |
 | `start [--port]` | `next start`. No typecheck: `start` serves a finished build. |
 

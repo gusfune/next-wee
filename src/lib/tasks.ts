@@ -7,14 +7,13 @@
  */
 import { existsSync } from "node:fs"
 import { join } from "node:path"
-import { x } from "tinyexec"
 import { getDbAdapter } from "../adapters/index.js"
 import { writeFile } from "../core/changes.js"
 import type { Context } from "../core/context.js"
 import { WeeError } from "../core/errors.js"
 import { playwrightConfigTemplate } from "../templates/ops.js"
 import type { RunToolResult } from "./packages.js"
-import { hasPackage, packageBin, runTool } from "./packages.js"
+import { runTool } from "./packages.js"
 
 type Stdio = "inherit" | "pipe"
 
@@ -196,38 +195,14 @@ interface ServeOptions extends TaskOptions {
 const portArgs = (port: string | undefined): string[] =>
   port === undefined ? [] : ["--port", port]
 
-const INNGEST_CLI = "inngest-cli"
-
-/**
- * `db:prepare`, the Inngest dev server when jobs are configured and the
- * package is installed, then `next dev`. The jobs server is killed when
- * `next dev` exits.
- */
+/** `db:prepare`, then `next dev`. */
 const dev = async (options: ServeOptions): Promise<RunToolResult> => {
   const { ctx, port } = options
   await prepareDatabase(ctx)
-  const jobs =
-    ctx.config.jobs?.provider === "inngest" &&
-    hasPackage(ctx.target.path, INNGEST_CLI)
-      ? x(
-          "node",
-          [
-            packageBin(ctx.target.path, INNGEST_CLI),
-            "dev",
-            "-u",
-            `http://localhost:${port ?? "3000"}/api/inngest`,
-          ],
-          { nodeOptions: { cwd: ctx.target.path, stdio: "inherit" } }
-        )
-      : undefined
-  try {
-    if (delegatesToTurbo(ctx, "dev")) {
-      return await runTurbo(options, "dev", ["--", ...portArgs(port)])
-    }
-    return await runNext(options, ["dev", ...portArgs(port)])
-  } finally {
-    jobs?.kill()
+  if (delegatesToTurbo(ctx, "dev")) {
+    return runTurbo(options, "dev", ["--", ...portArgs(port)])
   }
+  return runNext(options, ["dev", ...portArgs(port)])
 }
 
 const start = (options: ServeOptions): Promise<RunToolResult> =>

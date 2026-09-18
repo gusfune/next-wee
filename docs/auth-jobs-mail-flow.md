@@ -4,9 +4,9 @@ How `g auth`, `g auth:provider`, `g job`, `g email` and `mail:preview` fit toget
 
 ## Shared parts
 
-Every generator in this flow adds its variables to `.env.example` as one injected block (`auth`, `auth-provider-<id>`, `jobs`, `mail`). The block is written once; the first run owns it and later runs skip it. `g auth` records `auth: { provider }` and the first `g job` records `jobs: { provider: "inngest" }` in `.app/config.json`. Packages are installed through the package manager unless `--skip-install` is set; a dry run prints a note with the names instead.
+Every generator in this flow adds its variables to `.env.example` as one injected block (`auth`, `auth-provider-<id>`, `mail`). The block is written once; the first run owns it and later runs skip it. `g auth` records `auth: { provider }` in `.app/config.json`. Packages are installed through the package manager unless `--skip-install` is set; a dry run prints a note with the names instead.
 
-Files shared between runs (`jobs/index.ts`, `lib/inngest.ts`, `lib/mail.ts`, the API routes) are `ensure` changes. `destroy` keeps a shared file while another manifest lists it or a `wee:begin` marker of another run is still inside.
+Files shared between runs (`jobs/index.ts`, `lib/mail.ts`, the API routes) are `ensure` changes. `destroy` keeps a shared file while another manifest lists it or a `wee:begin` marker of another run is still inside.
 
 ## g auth
 
@@ -22,7 +22,7 @@ Files shared between runs (`jobs/index.ts`, `lib/inngest.ts`, `lib/mail.ts`, the
 
 ## g job
 
-`g job SendWelcome` writes `jobs/send-welcome.ts`: a Zod input schema, a pure `sendWelcome(input)` function and the Inngest function `sendWelcomeJob` with id `send-welcome` and event `<app>/send-welcome`, where `<app>` is the kebab-case target name. The test calls the pure function. The run injects an import block and a list entry into `jobs/index.ts`, which exports the `functions` array that `app/api/inngest/route.ts` serves. The first run also writes `lib/inngest.ts` with the client. The `Job` suffix is stripped from the name, so `SendWelcomeJob` and `SendWelcome` are the same job.
+`g job SendWelcome` writes `jobs/send-welcome.ts`: a Zod input schema and a pure async `sendWelcome(input)` function, so the test calls it directly and any queue or scheduler can run it later. The run injects an import block and a list entry into `jobs/index.ts`, which exports the `jobs` array as the single hook point a future queue backend consumes. The `Job` suffix is stripped from the name, so `SendWelcomeJob` and `SendWelcome` are the same job.
 
 ## g email and mail:preview
 

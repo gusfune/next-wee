@@ -26,7 +26,6 @@ const initGenerator = defineGenerator({
       srcDir: ctx.config.srcDir ?? true,
       ...(ctx.config.db === undefined ? {} : { db: ctx.config.db }),
       ...(ctx.config.auth === undefined ? {} : { auth: ctx.config.auth }),
-      ...(ctx.config.jobs === undefined ? {} : { jobs: ctx.config.jobs }),
     }
     const configKind = ctx.hasConfigFile ? "modify" : "create"
     return [

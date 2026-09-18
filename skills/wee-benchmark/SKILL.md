@@ -103,8 +103,8 @@ Each task names the prompt, the check that runs after the common checks, and the
 
 `job-send-welcome`
 
-- Prompt: "Add an Inngest job `SendWelcome` triggered by an app event, with a validated input, a unit test for the pure part, the Inngest client, and the `/api/inngest` route that serves all jobs."
-- Check: `bun test src/jobs` passes and `src/app/api/inngest/route.ts` exports `GET`, `POST` and `PUT`.
+- Prompt: "Add a job `SendWelcome` with a validated input, a unit test, and a registry in `jobs/index.ts` that lists every job."
+- Check: `bun test src/jobs` passes and `src/jobs/index.ts` exports a `jobs` array containing `sendWelcome`.
 - Destroy: `wee destroy job SendWelcome`.
 
 `email-welcome`
