@@ -19,7 +19,10 @@ import type {
   SeedOptions,
 } from "../../core/adapters.js"
 import type { FileChange } from "../../core/changes.js"
-import { readIfExists } from "../../core/changes.js"
+import {
+  createOrReplace as createOrReplaceChange,
+  readIfExists,
+} from "../../core/changes.js"
 import { CONFIG_DIR, CONFIG_FILE } from "../../core/config.js"
 import type { Context } from "../../core/context.js"
 import { sourceDir } from "../../core/context.js"
@@ -88,16 +91,13 @@ const createOrReplace = (
   ctx: Context,
   path: string,
   content: string
-): FileChange => {
-  const exists = existsSync(join(ctx.target.path, path))
-  if (exists && !ctx.flags.force) {
-    throw new WeeError(
-      "file-exists",
-      `${path} exists. Pass --force to regenerate it.`
-    )
-  }
-  return { kind: exists ? "modify" : "create", path, content }
-}
+): FileChange =>
+  createOrReplaceChange({
+    root: ctx.target.path,
+    force: ctx.flags.force,
+    path,
+    content,
+  })
 
 const init = async (ctx: Context, opts: InitOptions): Promise<InitResult> => {
   const src = sourceDir(ctx)

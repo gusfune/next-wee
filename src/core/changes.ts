@@ -19,6 +19,13 @@ import { injectBlock } from "./inject.js"
 type FileChange =
   | { kind: "create"; path: string; content: string }
   | { kind: "modify"; path: string; content: string }
+  /**
+   * Creates the file when it is missing and leaves it alone otherwise. For
+   * files shared by several runs (`actions.ts`, `env.ts`, `proxy.ts`).
+   * `destroy` deletes it only when no other manifest and no marker block
+   * refers to it.
+   */
+  | { kind: "ensure"; path: string; content: string }
   | {
       kind: "inject"
       path: string
@@ -29,7 +36,7 @@ type FileChange =
   | { kind: "delete"; path: string }
 
 const appliedChangeSchema = z.object({
-  kind: z.enum(["create", "modify", "inject", "delete"]),
+  kind: z.enum(["create", "modify", "ensure", "inject", "delete"]),
   path: z.string(),
   /** sha256 of the file after the change. Absent for deletes. */
   hash: z.string().optional(),
@@ -102,6 +109,13 @@ const applyChanges = (options: ApplyOptions): AppliedChange[] => {
         })
         break
       }
+      case "ensure": {
+        if (!dryRun && !existsSync(file)) {
+          writeFile(file, change.content)
+        }
+        applied.push({ kind: "ensure", path: change.path })
+        break
+      }
       case "inject": {
         const source = readIfExists(file) ?? ""
         const next = injectBlock({
@@ -134,6 +148,26 @@ const applyChanges = (options: ApplyOptions): AppliedChange[] => {
   return applied
 }
 
+interface CreateOrReplaceOptions {
+  root: string
+  force: boolean
+  path: string
+  content: string
+}
+
+/** `create` for a new file, `modify` when it exists and `force` is set; throws otherwise. */
+const createOrReplace = (options: CreateOrReplaceOptions): FileChange => {
+  const { root, force, path, content } = options
+  const exists = existsSync(join(root, path))
+  if (exists && !force) {
+    throw new WeeError(
+      "file-exists",
+      `${path} exists. Pass --force to regenerate it.`
+    )
+  }
+  return { kind: exists ? "modify" : "create", path, content }
+}
+
 type ChangeRow = { action: string; path: string }
 
 const describeChanges = (changes: FileChange[]): ChangeRow[] => {
@@ -147,6 +181,7 @@ export type { AppliedChange, ChangeRow, FileChange }
 export {
   appliedChangeSchema,
   applyChanges,
+  createOrReplace,
   describeChanges,
   readIfExists,
   sha256,

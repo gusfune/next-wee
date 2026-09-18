@@ -11,7 +11,12 @@ import { defineWeeCommand } from "../core/command.js"
 import type { Context } from "../core/context.js"
 import { WeeError } from "../core/errors.js"
 import { hasBlock, readBlock, removeBlock } from "../core/inject.js"
-import { deleteManifest, readManifest } from "../core/manifest.js"
+import {
+  deleteManifest,
+  isPathSharedWithOtherManifest,
+  manifestId,
+  readManifest,
+} from "../core/manifest.js"
 
 interface DriftCheck {
   path: string
@@ -29,6 +34,9 @@ const checkDrift = (
   }
   if (current === undefined) {
     return { path: change.path, reason: "missing" }
+  }
+  if (change.kind === "ensure") {
+    return undefined
   }
   if (change.kind === "inject") {
     if (
@@ -59,11 +67,36 @@ const pruneEmptyDirs = (root: string, file: string): void => {
   }
 }
 
-const reverseChange = (ctx: Context, change: AppliedChange): string => {
+interface ReverseOptions {
+  ctx: Context
+  change: AppliedChange
+  /** Id of the manifest being destroyed, excluded from the shared-file check. */
+  manifest: string
+}
+
+const reverseChange = (options: ReverseOptions): string => {
+  const { ctx, change, manifest } = options
   const root = ctx.target.path
   const file = join(root, change.path)
   switch (change.kind) {
     case "create": {
+      if (!ctx.flags.dryRun) {
+        rmSync(file, { force: true })
+        pruneEmptyDirs(root, file)
+      }
+      return "delete"
+    }
+    case "ensure": {
+      // Injected blocks of this run are already removed (reverse order), so
+      // any marker left belongs to another run.
+      const current = readIfExists(file)
+      const shared =
+        current === undefined ||
+        current.includes("wee:begin ") ||
+        isPathSharedWithOtherManifest(root, change.path, manifest)
+      if (shared) {
+        return "keep"
+      }
       if (!ctx.flags.dryRun) {
         rmSync(file, { force: true })
         pruneEmptyDirs(root, file)
@@ -142,8 +175,9 @@ const destroy = defineWeeCommand({
         }
       )
     }
+    const id = manifestId(args.generator, args.name)
     const rows = [...manifest.changes].reverse().map((change) => ({
-      action: reverseChange(ctx, change),
+      action: reverseChange({ ctx, change, manifest: id }),
       path: change.path,
     }))
     if (!ctx.flags.dryRun) {

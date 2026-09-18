@@ -123,9 +123,30 @@ const listManifests = (targetPath: string): string[] => {
     .map((entry) => entry.slice(0, -".json".length))
 }
 
+/** True when a manifest other than `excludeId` records a change to `path`. */
+const isPathSharedWithOtherManifest = (
+  targetPath: string,
+  path: string,
+  excludeId: string
+): boolean => {
+  return listManifests(targetPath)
+    .filter((id) => id !== excludeId)
+    .some((id) => {
+      const file = join(targetPath, MANIFEST_DIR, `${id}.json`)
+      const parsed = manifestSchema.safeParse(
+        JSON.parse(readFileSync(file, "utf8"))
+      )
+      return (
+        parsed.success &&
+        parsed.data.changes.some((change) => change.path === path)
+      )
+    })
+}
+
 export type { Manifest }
 export {
   deleteManifest,
+  isPathSharedWithOtherManifest,
   listManifests,
   MANIFEST_DIR,
   manifestId,
