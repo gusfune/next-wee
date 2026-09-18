@@ -31,21 +31,39 @@ const packageDir = (targetPath: string, name: string): string => {
   }
 }
 
-const packageBin = (targetPath: string, name: string): string => {
+/** Path of a package's binary. `bin` names it when it differs from the package, e.g. `email` in `react-email`. */
+const packageBin = (targetPath: string, name: string, bin = name): string => {
   const dir = packageDir(targetPath, name)
   const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as {
     bin?: string | Record<string, string>
   }
-  const bin = typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.[name]
-  if (bin === undefined) {
-    throw new WeeError("package-missing", `${name} has no "${name}" binary`)
+  const file = typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.[bin]
+  if (file === undefined) {
+    throw new WeeError("package-missing", `${name} has no "${bin}" binary`)
   }
-  return join(dir, bin)
+  return join(dir, file)
+}
+
+/** Names from the list that the target's package.json does not have yet. */
+const missingPackages = (targetPath: string, names: string[]): string[] => {
+  const pkg = JSON.parse(
+    readFileSync(join(targetPath, "package.json"), "utf8")
+  ) as {
+    dependencies?: Record<string, string>
+    devDependencies?: Record<string, string>
+  }
+  return names.filter(
+    (name) =>
+      pkg.dependencies?.[name] === undefined &&
+      pkg.devDependencies?.[name] === undefined
+  )
 }
 
 interface RunBinOptions {
   targetPath: string
   name: string
+  /** Binary name when it differs from the package name. */
+  bin?: string
   args: string[]
   /** `inherit` streams to the terminal. `pipe` captures and returns stdout. */
   stdio: "inherit" | "pipe"
@@ -59,7 +77,7 @@ interface RunBinResult {
 
 const runBin = async (options: RunBinOptions): Promise<RunBinResult> => {
   const { targetPath, name, args, stdio } = options
-  const bin = packageBin(targetPath, name)
+  const bin = packageBin(targetPath, name, options.bin)
   const result = await x("node", [bin, ...args], {
     nodeOptions: { cwd: targetPath, stdio },
     throwOnError: false,
@@ -163,6 +181,7 @@ export type { RunBinResult, RunScriptResult }
 export {
   importFromTarget,
   installPackages,
+  missingPackages,
   packageBin,
   packageDir,
   runBin,

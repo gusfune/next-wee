@@ -62,6 +62,8 @@ interface InitResult {
 /** What a migration does to the schema. Drives model edits and the down SQL. */
 type SchemaChange =
   | { kind: "create-table"; model: ModelSpec }
+  /** Several tables in one migration, e.g. the auth tables. */
+  | { kind: "create-tables"; models: ModelSpec[] }
   | { kind: "add-columns"; table: string; attributes: Attribute[] }
   | { kind: "remove-columns"; table: string; attributes: Attribute[] }
   | { kind: "custom" }
@@ -94,7 +96,16 @@ interface PrepareResult {
 interface DbAdapter {
   readonly name: "drizzle" | "prisma"
   init(ctx: Context, opts: InitOptions): Promise<InitResult>
-  emitModel(ctx: Context, model: ModelSpec): FileChange[]
+  /** Schema file of a model, relative to the target, e.g. `src/db/schema/posts.ts`. */
+  modelPath(ctx: Context, model: ModelSpec): string
+  /** Module that exports the model's row type (`Post`), relative to the target. */
+  modelTypeImport(ctx: Context, model: ModelSpec): string
+  /** `pending` lists changes of the same run, so a reference to a model created in it resolves. */
+  emitModel(
+    ctx: Context,
+    model: ModelSpec,
+    pending?: FileChange[]
+  ): FileChange[]
   emitMigration(ctx: Context, opts: MigrationOptions): Promise<FileChange[]>
   emitValidator(ctx: Context, model: ModelSpec): FileChange[]
   emitService(ctx: Context, model: ModelSpec): FileChange[]

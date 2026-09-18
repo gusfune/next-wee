@@ -4,9 +4,11 @@
  * through a manifest and then installs packages.
  */
 
+import { existsSync } from "node:fs"
+import { join } from "node:path"
 import { detectDrizzleConfig } from "../adapters/drizzle/adopt.js"
-import { drizzleAdapter } from "../adapters/drizzle/index.js"
-import { getDbAdapter } from "../adapters/index.js"
+import type { AdapterName } from "../adapters/index.js"
+import { dbAdapters, getDbAdapter } from "../adapters/index.js"
 import type { DbProvider, InitOptions } from "../core/adapters.js"
 import type { CommandResult } from "../core/command.js"
 import { defineWeeCommand } from "../core/command.js"
@@ -19,6 +21,18 @@ import { appEnv } from "../lib/env.js"
 import { installPackages } from "../lib/packages.js"
 
 const PROVIDERS: DbProvider[] = ["postgres", "sqlite", "mysql"]
+const ADAPTERS = Object.keys(dbAdapters) as AdapterName[]
+
+const parseAdapter = (raw: string): AdapterName => {
+  const found = ADAPTERS.find((adapter) => adapter === raw)
+  if (found === undefined) {
+    throw new WeeError(
+      "invalid-adapter",
+      `--adapter must be one of ${ADAPTERS.join(", ")}`
+    )
+  }
+  return found
+}
 
 const parseProvider = (raw: string): DbProvider => {
   const found = PROVIDERS.find((provider) => provider === raw)
@@ -37,7 +51,7 @@ const dbInitGenerator = defineGenerator({
   args: {
     adapter: {
       type: "string",
-      description: "drizzle (prisma arrives in phase 4)",
+      description: "drizzle | prisma",
       default: "drizzle",
     },
     provider: {
@@ -48,41 +62,54 @@ const dbInitGenerator = defineGenerator({
     "skip-install": {
       type: "boolean",
       description:
-        "Write files only. db commands stay blocked until drizzle-orm is installed",
+        "Write files only. db commands stay blocked until the ORM is installed",
       default: false,
     },
   },
   manifestName: () => "init",
   run: async (ctx, args) => {
     assertAppRouter(ctx)
-    if (args.adapter !== "drizzle") {
-      throw new WeeError(
-        "adapter-unavailable",
-        `Adapter "${args.adapter}" is not available. Use drizzle.`
-      )
-    }
+    const adapter = parseAdapter(args.adapter)
     if (ctx.config.db !== undefined && !ctx.flags.force) {
       throw new WeeError(
         "db-already-initialised",
         `${ctx.configPath} already has a db section. Pass --force to overwrite.`
       )
     }
-    const result = await drizzleAdapter.init(
+    const result = await dbAdapters[adapter].init(
       ctx,
-      initOptions(ctx, args.provider)
+      initOptions(ctx, adapter, args.provider)
     )
     return result.changes
   },
 })
 
+/** Files of a Prisma setup that init does not adopt. */
+const PRISMA_FILES = ["prisma.config.ts", "prisma/schema.prisma"]
+
 /**
  * Fresh app: the flag or postgres. Existing `drizzle.config.*`: adopt its
  * dialect and paths; a conflicting `--provider` is an error, not a rewrite.
+ * An existing Prisma setup is refused: its schema and migrations layout is
+ * not the one wee writes.
  */
 const initOptions = (
   ctx: Context,
+  adapter: AdapterName,
   providerFlag: string | undefined
 ): InitOptions => {
+  if (adapter === "prisma") {
+    const found = PRISMA_FILES.filter((file) =>
+      existsSync(join(ctx.target.path, file))
+    )
+    if (found.length > 0) {
+      throw new WeeError(
+        "adopt-unsupported",
+        `${found.join(", ")} exists. wee does not adopt a Prisma setup; move it aside or use --adapter=drizzle.`
+      )
+    }
+    return { provider: parseProvider(providerFlag ?? "postgres") }
+  }
   const existing = detectDrizzleConfig(ctx.target.path)
   if (existing === undefined) {
     return { provider: parseProvider(providerFlag ?? "postgres") }
@@ -115,9 +142,10 @@ const dbInit = defineWeeCommand({
     }
     // The generator already validated the provider; recompute the package
     // lists from the adapter so they stay in one place.
-    const { dependencies, devDependencies } = await drizzleAdapter.init(
+    const adapter = parseAdapter(args.adapter)
+    const { dependencies, devDependencies } = await dbAdapters[adapter].init(
       ctx,
-      initOptions(ctx, args.provider)
+      initOptions(ctx, adapter, args.provider)
     )
     await installPackages({ ctx, dependencies, devDependencies })
     const rows = Array.isArray(result.data) ? result.data : [result.data]
@@ -149,7 +177,7 @@ const okRow = (action: string, path = ""): Row => ({ action, path })
 const dbGenerate = defineWeeCommand({
   meta: {
     name: "db:generate",
-    description: "Diff the schema and write a migration (drizzle-kit generate)",
+    description: "Diff the schema and write a migration",
   },
   args: { name: { type: "string", description: "Migration name" } },
   run: async (ctx, args) => {

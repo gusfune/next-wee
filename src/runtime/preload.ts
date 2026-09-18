@@ -18,6 +18,7 @@ const { values } = parseArgs({
     src: { type: "string" },
     schema: { type: "string" },
     provider: { type: "string" },
+    adapter: { type: "string" },
     mode: { type: "string" },
     sandbox: { type: "boolean", default: false },
     file: { type: "string" },
@@ -27,7 +28,7 @@ const { values } = parseArgs({
 })
 
 const required = (
-  name: "app" | "src" | "schema" | "provider" | "mode"
+  name: "app" | "src" | "schema" | "provider" | "adapter" | "mode"
 ): string => {
   const value = values[name]
   if (value === undefined) {
@@ -40,6 +41,7 @@ const app = required("app")
 const src = required("src")
 const schemaDir = required("schema")
 const provider = required("provider")
+const adapter = required("adapter")
 const mode = required("mode")
 
 type Module = Record<string, unknown>
@@ -51,6 +53,14 @@ const importIfExists = async (file: string): Promise<Module | undefined> =>
 
 const camelCase = (name: string): string =>
   name.replace(/[-_]([a-z0-9])/g, (_, char: string) => char.toUpperCase())
+
+/** The `auth` instance when `lib/auth` exports one, else the whole module. */
+const authScope = (module: Module | undefined): Module | undefined =>
+  module === undefined
+    ? undefined
+    : typeof module.auth === "object" && module.auth !== null
+      ? (module.auth as Module)
+      : module
 
 /** Every `services/*.ts` module keyed by its camelCase file name. */
 const loadServices = async (): Promise<Record<string, Module>> => {
@@ -82,7 +92,7 @@ const scope: Scope = {
   db: (await importIfExists(join(src, "db", "client.ts")))?.db,
   schema: await importIfExists(join(schemaDir, "index.ts")),
   services: await loadServices(),
-  auth: await importIfExists(join(src, "lib", "auth", "index.ts")),
+  auth: authScope(await importIfExists(join(src, "lib", "auth", "index.ts"))),
 }
 
 const banner = (): string => {
@@ -165,6 +175,31 @@ interface TransactionDb {
   transaction: <T>(fn: (tx: unknown) => Promise<T>) => Promise<T>
 }
 
+interface PrismaDb {
+  $transaction: <T>(fn: (tx: unknown) => Promise<T>) => Promise<T>
+}
+
+/**
+ * Prisma rolls back an interactive transaction when the callback throws.
+ * The transaction client is exposed as `db`; services import the shared
+ * client and still write outside it.
+ */
+const runInPrismaSandbox = async (db: PrismaDb): Promise<number> => {
+  const rollback = Symbol("rollback")
+  let code: number | undefined
+  try {
+    await db.$transaction(async (tx) => {
+      code = await body(tx)
+      throw rollback
+    })
+  } catch (error) {
+    if (error !== rollback) {
+      throw error
+    }
+  }
+  return code ?? 1
+}
+
 /**
  * SQLite drivers are synchronous, so the session runs between BEGIN and
  * ROLLBACK on the same connection. Postgres and MySQL run inside
@@ -175,6 +210,10 @@ const runInSandbox = async (): Promise<number> => {
   const { db } = scope
   if (db === undefined || db === null) {
     throw new Error("preload: --sandbox needs src/db/client.ts")
+  }
+  if (adapter === "prisma") {
+    // Claim: the generated Prisma client always has `$transaction`.
+    return runInPrismaSandbox(db as PrismaDb)
   }
   const require = createRequire(join(app, "package.json"))
   const { sql } = require("drizzle-orm") as {

@@ -1,10 +1,9 @@
 /** `wee g service <Name> [attrs...]`: typed CRUD over the model's table. */
 import { existsSync } from "node:fs"
 import { join } from "node:path"
-import { modelFile } from "../../adapters/drizzle/templates.js"
 import { getDbAdapter } from "../../adapters/index.js"
 import { defineWeeCommand } from "../../core/command.js"
-import { assertAppRouter, sourceDir } from "../../core/context.js"
+import { assertAppRouter } from "../../core/context.js"
 import { WeeError } from "../../core/errors.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
 import { buildModelSpec } from "../../lib/attributes.js"
@@ -18,18 +17,15 @@ const serviceGenerator = defineGenerator({
   run: async (ctx, args) => {
     assertAppRouter(ctx)
     const model = resolveModel(ctx, args.name, attributeArgs(args._))
-    const modelPath = join(
-      sourceDir(ctx),
-      ctx.config.db?.schemaDir ?? "db/schema",
-      modelFile(model)
-    )
+    const adapter = getDbAdapter(ctx)
+    const modelPath = adapter.modelPath(ctx, model)
     if (!existsSync(join(ctx.target.path, modelPath))) {
       throw new WeeError(
         "model-missing",
         `${model.name}: no model at ${modelPath}. Run "wee g model" first.`
       )
     }
-    return getDbAdapter(ctx).emitService(ctx, model)
+    return adapter.emitService(ctx, model)
   },
 })
 

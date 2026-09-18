@@ -48,6 +48,8 @@ const runPreload = async (ctx: Context, extra: string[]): Promise<void> => {
       join(src, db.schemaDir),
       "--provider",
       db.provider,
+      "--adapter",
+      db.adapter,
       ...extra,
     ],
     stdio: "inherit",

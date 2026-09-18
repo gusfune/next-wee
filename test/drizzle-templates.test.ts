@@ -5,8 +5,8 @@ import { editModelSource } from "../src/adapters/drizzle/model-edit.js"
 import {
   modelTemplate,
   serviceTemplate,
-  validatorTemplate,
 } from "../src/adapters/drizzle/templates.js"
+import { validatorTemplate } from "../src/adapters/validator.js"
 import { buildModelSpec, parseAttributes } from "../src/lib/attributes.js"
 
 const post = buildModelSpec(

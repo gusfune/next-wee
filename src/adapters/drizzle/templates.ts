@@ -5,17 +5,13 @@
  */
 import type { Attribute, DbProvider, ModelSpec } from "../../core/adapters.js"
 import { camelCase, kebabCase, plural } from "../../lib/inflect.js"
+import { enumName, quoteLiteral } from "../validator.js"
 import {
   CORE_MODULE,
   columnCode,
-  enumName,
   KIT_DIALECT,
-  quoteLiteral,
-  sampleValue,
   systemColumns,
   TABLE_FN,
-  wrongValue,
-  zodCode,
 } from "./columns.js"
 
 interface DbPaths {
@@ -247,98 +243,6 @@ const modelTemplate = (provider: DbProvider, model: ModelSpec): string => {
 const indexCode = (table: string, attribute: Attribute): string =>
   `index("${table}_${attribute.column}_idx").on(table.${attribute.name})`
 
-const validatorTemplate = (model: ModelSpec): string => {
-  const enums = model.attributes.filter(
-    (attribute) => attribute.type === "enum"
-  )
-  const lines: string[] = ['import { z } from "zod"', ""]
-  for (const attribute of enums) {
-    const values = (attribute.values ?? []).map(quoteLiteral).join(", ")
-    lines.push(
-      `const ${enumName(model.table, attribute).variable}Values = [${values}] as const`,
-      ""
-    )
-  }
-  lines.push(`const insert${model.name}Schema = z.object({`)
-  for (const attribute of model.attributes) {
-    lines.push(`  ${attribute.name}: ${zodCode(model, attribute)},`)
-  }
-  lines.push("})", "")
-  lines.push(
-    `const update${model.name}Schema = insert${model.name}Schema.partial()`,
-    ""
-  )
-  lines.push(`const ${camelCase(model.name)}QuerySchema = z.object({`)
-  lines.push("  page: z.coerce.number().int().min(1).default(1),")
-  lines.push("  perPage: z.coerce.number().int().min(1).max(100).default(20),")
-  lines.push("})", "")
-  lines.push(
-    `type Insert${model.name} = z.infer<typeof insert${model.name}Schema>`
-  )
-  lines.push(
-    `type Update${model.name} = z.infer<typeof update${model.name}Schema>`
-  )
-  lines.push(
-    `type ${model.name}Query = z.infer<typeof ${camelCase(model.name)}QuerySchema>`
-  )
-  lines.push("")
-  lines.push(
-    `export type { Insert${model.name}, ${model.name}Query, Update${model.name} }`
-  )
-  const exported = [
-    ...enums.map(
-      (attribute) => `${enumName(model.table, attribute).variable}Values`
-    ),
-    `insert${model.name}Schema`,
-    `${camelCase(model.name)}QuerySchema`,
-    `update${model.name}Schema`,
-  ].sort()
-  lines.push(`export { ${exported.join(", ")} }`, "")
-  return lines.join("\n")
-}
-
-const validatorTestTemplate = (model: ModelSpec): string => {
-  const schema = `insert${model.name}Schema`
-  const file = kebabCase(model.name)
-  const valid = model.attributes
-    .map((attribute) => `  ${attribute.name}: ${sampleValue(attribute)},`)
-    .join("\n")
-  const required = model.attributes.find(
-    (attribute) => !attribute.optional && attribute.defaultValue === undefined
-  )
-  const first = model.attributes[0]
-  const lines: string[] = [
-    'import { describe, expect, it } from "vitest"',
-    `import { ${schema} } from "./${file}"`,
-    "",
-    `const valid = {`,
-    ...(valid.length > 0 ? [valid] : []),
-    "}",
-    "",
-    `describe("${schema}", () => {`,
-    `  it("accepts a valid ${model.name}", () => {`,
-    `    expect(${schema}.safeParse(valid).success).toBe(true)`,
-    "  })",
-  ]
-  if (required !== undefined) {
-    lines.push(
-      "",
-      `  it("rejects a missing ${required.name}", () => {`,
-      `    expect(${schema}.safeParse({ ...valid, ${required.name}: undefined }).success).toBe(false)`,
-      "  })"
-    )
-  } else if (first !== undefined) {
-    lines.push(
-      "",
-      `  it("rejects a wrong ${first.name}", () => {`,
-      `    expect(${schema}.safeParse({ ...valid, ${first.name}: ${wrongValue(first)} }).success).toBe(false)`,
-      "  })"
-    )
-  }
-  lines.push("})", "")
-  return lines.join("\n")
-}
-
 const serviceTemplate = (provider: DbProvider, model: ModelSpec): string => {
   const table = camelCase(model.table)
   const name = model.name
@@ -431,6 +335,4 @@ export {
   seedRunnerTemplate,
   seedsReadmeTemplate,
   serviceTemplate,
-  validatorTemplate,
-  validatorTestTemplate,
 }

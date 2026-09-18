@@ -62,9 +62,9 @@ interface InjectOptions {
   after?: string | undefined
 }
 
-const hasBlock = (source: string, path: string, id: string): boolean => {
-  return source.includes(markerLines(path, id).begin)
-}
+/** Whole-line match, so `job-x` does not report `job-x-import` as present. */
+const hasBlock = (source: string, path: string, id: string): boolean =>
+  new RegExp(`^${escapeRegExp(markerLines(path, id).begin)}$`, "m").test(source)
 
 const injectBlock = (options: InjectOptions): string => {
   const { source, path, id, content, after } = options

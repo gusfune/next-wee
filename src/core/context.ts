@@ -5,6 +5,7 @@
  */
 
 import pkg from "../../package.json" with { type: "json" }
+import { kebabCase } from "../lib/inflect.js"
 import type { AppConfig, AppLayout } from "./config.js"
 import { loadConfig } from "./config.js"
 import { WeeError } from "./errors.js"
@@ -77,5 +78,9 @@ const assertAppRouter = (ctx: Context): void => {
 /** Source root of the target: `src/` when `srcDir` is on, else the app root. */
 const sourceDir = (ctx: Context): string => (ctx.config.srcDir ? "src" : ".")
 
+/** kebab-case app name for ids and database names; the single-repo root is `app`. */
+const appSlug = (ctx: Context): string =>
+  kebabCase(ctx.target.name === "root" ? "app" : ctx.target.name)
+
 export type { Context, GlobalFlags }
-export { assertAppRouter, buildContext, sourceDir }
+export { appSlug, assertAppRouter, buildContext, sourceDir }

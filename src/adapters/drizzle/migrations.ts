@@ -23,15 +23,12 @@ import type { FileChange } from "../../core/changes.js"
 import { applyChanges, readIfExists } from "../../core/changes.js"
 import { CONFIG_DIR } from "../../core/config.js"
 import type { Context } from "../../core/context.js"
-import { sourceDir } from "../../core/context.js"
 import { WeeError } from "../../core/errors.js"
 import { runBin } from "../../lib/packages.js"
-import {
-  columnDefinitionSql,
-  enumName,
-  KIT_DIALECT,
-  quoteIdentifier,
-} from "./columns.js"
+import { quoteIdentifier } from "../driver.js"
+import { dbDirs } from "../shared.js"
+import { enumName } from "../validator.js"
+import { columnDefinitionSql, KIT_DIALECT } from "./columns.js"
 
 const BREAKPOINT = "--> statement-breakpoint"
 
@@ -47,27 +44,6 @@ interface Journal {
   version: string
   dialect: string
   entries: JournalEntry[]
-}
-
-interface DbDirs {
-  /** Relative to the target app. */
-  schemaDir: string
-  migrationsDir: string
-}
-
-const dbDirs = (ctx: Context): DbDirs => {
-  const db = ctx.config.db
-  if (db === undefined) {
-    throw new WeeError(
-      "db-not-initialised",
-      'No database adapter. Run "wee db:init --adapter=drizzle" first.'
-    )
-  }
-  const src = sourceDir(ctx)
-  return {
-    schemaDir: join(src, db.schemaDir),
-    migrationsDir: join(src, db.migrationsDir),
-  }
 }
 
 const readJournal = (dir: string): Journal | undefined => {
@@ -124,6 +100,15 @@ const downSql = (provider: DbProvider, change: SchemaChange): string => {
         `DROP TABLE ${q(change.model.table)}`,
         ...dropEnums(change.model.table, change.model.attributes),
       ])
+    case "create-tables":
+      return joinStatements(
+        change.models
+          .toReversed()
+          .flatMap((model) => [
+            `DROP TABLE ${q(model.table)}`,
+            ...dropEnums(model.table, model.attributes),
+          ])
+      )
     case "add-columns":
       return joinStatements([
         ...change.attributes.flatMap((attribute) => [
@@ -294,10 +279,9 @@ const assertMigrationsHaveSql = (migrationsDir: string): void => {
   }
 }
 
-export type { DbDirs, Journal, JournalEntry }
+export type { Journal, JournalEntry }
 export {
   assertMigrationsHaveSql,
-  dbDirs,
   downSql,
   generateMigration,
   readDownStatements,

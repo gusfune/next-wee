@@ -4,7 +4,7 @@
  * required in the target app.
  */
 
-import { quoteLiteral } from "../adapters/drizzle/columns.js"
+import { quoteLiteral } from "../adapters/validator.js"
 import type { Attribute, ModelSpec } from "../core/adapters.js"
 import { camelCase, kebabCase, pascalCase, titleCase } from "../lib/inflect.js"
 

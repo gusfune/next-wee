@@ -3,8 +3,10 @@
  * builder, to raw SQL type (for down migrations) and to Zod schema. One
  * table per provider so the three dialects stay side by side.
  */
-import type { Attribute, DbProvider, ModelSpec } from "../../core/adapters.js"
-import { camelCase, singular } from "../../lib/inflect.js"
+import type { Attribute, DbProvider } from "../../core/adapters.js"
+import { camelCase } from "../../lib/inflect.js"
+import { quoteIdentifier } from "../driver.js"
+import { enumName, isNumeric, quoteLiteral } from "../validator.js"
 
 const CORE_MODULE: Record<DbProvider, string> = {
   postgres: "drizzle-orm/pg-core",
@@ -23,21 +25,6 @@ const KIT_DIALECT: Record<DbProvider, string> = {
   sqlite: "sqlite",
   mysql: "mysql",
 }
-
-/** Name of the enum variable and SQL type for a pg enum, e.g. `postStatus` / `post_status`. */
-const enumName = (
-  table: string,
-  attribute: Attribute
-): { variable: string; sqlName: string } => {
-  const sqlName = `${singular(table)}_${attribute.column}`
-  return { variable: camelCase(sqlName), sqlName }
-}
-
-const quoteLiteral = (value: string): string =>
-  `"${value.replace(/"/g, '\\"')}"`
-
-const isNumeric = (attribute: Attribute): boolean =>
-  attribute.type === "integer" || attribute.type === "decimal"
 
 /** Default clause. `now` on a datetime and `random` on a uuid map to builder helpers. */
 const defaultCode = (provider: DbProvider, attribute: Attribute): string => {
@@ -257,9 +244,6 @@ const systemColumns = (
   }
 }
 
-const quoteIdentifier = (provider: DbProvider, name: string): string =>
-  provider === "mysql" ? `\`${name}\`` : `"${name}"`
-
 const sqlLiteral = (attribute: Attribute, value: string): string =>
   isNumeric(attribute) || attribute.type === "boolean"
     ? value
@@ -346,80 +330,12 @@ const columnDefinitionSql = (
   return parts.join(" ")
 }
 
-/** Zod schema for one attribute in the insert validator. */
-const zodCode = (model: ModelSpec, attribute: Attribute): string => {
-  const base = ((): string => {
-    switch (attribute.type) {
-      case "string":
-        return "z.string().max(255)"
-      case "text":
-        return "z.string()"
-      case "integer":
-        return "z.number().int()"
-      case "decimal":
-        return "z.number()"
-      case "boolean":
-        return "z.boolean()"
-      case "datetime":
-        return "z.date()"
-      case "uuid":
-      case "references":
-        return "z.string().uuid()"
-      case "json":
-        return "z.unknown()"
-      case "enum":
-        return `z.enum(${enumName(model.table, attribute).variable}Values)`
-    }
-  })()
-  const omittable = attribute.optional || attribute.defaultValue !== undefined
-  return omittable ? `${base}.optional()` : base
-}
-
-/** A value that passes the attribute's validator. Used in generated tests. */
-const sampleValue = (attribute: Attribute): string => {
-  switch (attribute.type) {
-    case "string":
-      return '"Example"'
-    case "text":
-      return '"Example text"'
-    case "integer":
-      return "1"
-    case "decimal":
-      return "1.5"
-    case "boolean":
-      return "true"
-    case "datetime":
-      return 'new Date("2026-01-01T00:00:00.000Z")'
-    case "uuid":
-    case "references":
-      return '"00000000-0000-4000-8000-000000000000"'
-    case "json":
-      return "{}"
-    case "enum":
-      return quoteLiteral(attribute.values?.[0] ?? "")
-  }
-}
-
-/** A value that fails the attribute's validator. */
-const wrongValue = (attribute: Attribute): string =>
-  attribute.type === "json"
-    ? "undefined"
-    : isNumeric(attribute)
-      ? '"not a number"'
-      : "123"
-
 export type { ColumnCode }
 export {
   CORE_MODULE,
   columnCode,
   columnDefinitionSql,
-  enumName,
   KIT_DIALECT,
-  quoteIdentifier,
-  quoteLiteral,
-  sampleValue,
   systemColumns,
   TABLE_FN,
-  wrongValue,
-  zodCode,
 }

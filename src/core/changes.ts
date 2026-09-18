@@ -128,6 +128,14 @@ const applyChanges = (options: ApplyOptions): AppliedChange[] => {
         if (!dryRun) {
           writeFile(file, next)
         }
+        // A file created earlier in this run now has the block too. Destroy
+        // checks every hash before it reverses anything, so the create entry
+        // must carry the final content.
+        for (const earlier of applied) {
+          if (earlier.path === change.path && earlier.hash !== undefined) {
+            earlier.hash = sha256(next)
+          }
+        }
         applied.push({
           kind: "inject",
           path: change.path,

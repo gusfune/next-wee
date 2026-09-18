@@ -4,9 +4,7 @@
  * drizzle-kit does not do (rollback, status, prepare, reset), use the raw
  * driver. See docs/database-flow.md for the end-to-end flow.
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { join, relative } from "node:path"
-import { x } from "tinyexec"
 import type {
   DbAdapter,
   DbProvider,
@@ -16,32 +14,38 @@ import type {
   MigrationStatus,
   ModelSpec,
   PrepareResult,
-  SeedOptions,
 } from "../../core/adapters.js"
 import type { FileChange } from "../../core/changes.js"
-import {
-  createOrReplace as createOrReplaceChange,
-  readIfExists,
-} from "../../core/changes.js"
-import { CONFIG_DIR, CONFIG_FILE } from "../../core/config.js"
+import { readIfExists } from "../../core/changes.js"
 import type { Context } from "../../core/context.js"
 import { sourceDir } from "../../core/context.js"
 import { WeeError } from "../../core/errors.js"
-import { appEnv, databaseUrl, loadTargetEnv } from "../../lib/env.js"
+import { databaseUrl, loadTargetEnv } from "../../lib/env.js"
 import { kebabCase, plural } from "../../lib/inflect.js"
-import { runBin, runScript } from "../../lib/packages.js"
+import { runBin } from "../../lib/packages.js"
+import { createDatabase, dropDatabase } from "../driver.js"
+import {
+  assertPushAllowed,
+  assertResetAllowed,
+  baseInit,
+  createIfMissing,
+  createOrReplace,
+  databaseName,
+  dbDirs,
+  hasSeeds,
+  provider,
+  runSeed,
+  sqlShell,
+  withDriver,
+} from "../shared.js"
+import { validatorTemplate, validatorTestTemplate } from "../validator.js"
 import {
   appliedMigrations,
-  createDatabase,
-  databaseTarget,
-  dropDatabase,
   forgetMigration,
   migrationsTableExists,
-  openDriver,
 } from "./driver.js"
 import {
   assertMigrationsHaveSql,
-  dbDirs,
   generateMigration,
   readDownStatements,
   readJournal,
@@ -57,8 +61,6 @@ import {
   seedRunnerTemplate,
   seedsReadmeTemplate,
   serviceTemplate,
-  validatorTemplate,
-  validatorTestTemplate,
 } from "./templates.js"
 
 const DRIVER: Record<DbProvider, string> = {
@@ -67,41 +69,8 @@ const DRIVER: Record<DbProvider, string> = {
   mysql: "mysql2",
 }
 
-const DB_SCRIPTS = [
-  "db:generate",
-  "db:migrate",
-  "db:rollback",
-  "db:status",
-  "db:push",
-  "db:seed",
-  "db:prepare",
-  "db:reset",
-  "db:studio",
-]
-
-const provider = (ctx: Context): DbProvider =>
-  ctx.config.db?.provider ?? "postgres"
-
-/** Indentation of an existing JSON file, so a rewrite keeps its style. */
-const detectIndent = (text: string): string =>
-  text.match(/^(\s+)"/m)?.[1] ?? "  "
-
-/** `create` for a new file, `modify` with `--force` when it exists. */
-const createOrReplace = (
-  ctx: Context,
-  path: string,
-  content: string
-): FileChange =>
-  createOrReplaceChange({
-    root: ctx.target.path,
-    force: ctx.flags.force,
-    path,
-    content,
-  })
-
 const init = async (ctx: Context, opts: InitOptions): Promise<InitResult> => {
   const src = sourceDir(ctx)
-  const target = ctx.target.path
   // Config paths are relative to the source dir; adopted paths are relative to the app.
   const db = {
     adapter: "drizzle" as const,
@@ -120,101 +89,52 @@ const init = async (ctx: Context, opts: InitOptions): Promise<InitResult> => {
     schemaDir: join(src, db.schemaDir),
     migrationsDir: join(src, db.migrationsDir),
   }
-  const configPath = join(CONFIG_DIR, CONFIG_FILE)
-  const existingConfig = readIfExists(join(target, configPath))
-  const config = {
-    ...(existingConfig === undefined
-      ? { router: ctx.config.router, srcDir: ctx.config.srcDir }
-      : (JSON.parse(existingConfig) as Record<string, unknown>)),
+  const base = baseInit(ctx, {
     db,
-  }
-  const pkgPath = join(target, "package.json")
-  const pkgText = readFileSync(pkgPath, "utf8")
-  const pkg = JSON.parse(pkgText) as {
-    scripts?: Record<string, string>
-    dependencies?: Record<string, string>
-    devDependencies?: Record<string, string>
-  }
-  const scripts = { ...pkg.scripts }
-  for (const script of DB_SCRIPTS) {
-    scripts[script] = `wee ${script}`
-  }
-  const appName = kebabCase(
-    ctx.target.name === "root" ? "app" : ctx.target.name
-  ).replace(/-/g, "_")
-  // Files that already exist are kept as they are. That is what makes
-  // adopting an existing Drizzle setup safe; on a fresh app nothing exists.
-  const createIfMissing = (path: string, content: string): FileChange[] =>
-    existsSync(join(target, path)) ? [] : [{ kind: "create", path, content }]
+    defaultUrl: DEFAULT_URL[opts.provider](databaseName(ctx)),
+    ignores: opts.provider === "sqlite" ? ["*.sqlite"] : [],
+  })
   const changes: FileChange[] = [
-    {
-      kind: existingConfig === undefined ? "create" : "modify",
-      path: configPath,
-      content: `${JSON.stringify(config, null, 2)}\n`,
-    },
+    ...base.changes,
     ...createIfMissing(
+      ctx,
       "drizzle.config.ts",
       drizzleConfigTemplate(opts.provider, paths)
     ),
     ...createIfMissing(
+      ctx,
       join(src, "db/client.ts"),
       clientTemplate(opts.provider)
     ),
     ...createIfMissing(
+      ctx,
       join(paths.schemaDir, "index.ts"),
       schemaIndexTemplate()
     ),
-    ...createIfMissing(join(src, "db/seed.ts"), seedRunnerTemplate()),
-    ...createIfMissing(join(src, "db/seeds/README.md"), seedsReadmeTemplate()),
-    {
-      kind: "modify",
-      path: "package.json",
-      content: `${JSON.stringify({ ...pkg, scripts }, null, detectIndent(pkgText))}\n`,
-    },
+    ...createIfMissing(ctx, join(src, "db/seed.ts"), seedRunnerTemplate()),
+    ...createIfMissing(
+      ctx,
+      join(src, "db/seeds/README.md"),
+      seedsReadmeTemplate()
+    ),
   ]
-  if (
-    !(readIfExists(join(target, ".env.example")) ?? "").includes(
-      "DATABASE_URL="
-    )
-  ) {
-    changes.push({
-      kind: "inject",
-      path: ".env.example",
-      marker: "db",
-      content: `DATABASE_URL=${DEFAULT_URL[opts.provider](appName)}`,
-    })
-  }
-  if (
-    opts.provider === "sqlite" &&
-    !(readIfExists(join(target, ".gitignore")) ?? "").includes("*.sqlite")
-  ) {
-    changes.push({
-      kind: "inject",
-      path: ".gitignore",
-      marker: "db",
-      content: "*.sqlite",
-    })
-  }
-  const missing = (names: string[]): string[] =>
-    names.filter(
-      (name) =>
-        pkg.dependencies?.[name] === undefined &&
-        pkg.devDependencies?.[name] === undefined
-    )
   return {
     changes,
-    dependencies: missing([
+    dependencies: base.missing([
       "drizzle-orm",
       DRIVER[opts.provider],
       "zod",
       "server-only",
     ]),
-    devDependencies: missing([
+    devDependencies: base.missing([
       "drizzle-kit",
       ...(ctx.repo.packageManager === "bun" ? [] : ["tsx"]),
     ]),
   }
 }
+
+const modelPath = (ctx: Context, model: ModelSpec): string =>
+  join(dbDirs(ctx).schemaDir, modelFile(model))
 
 const emitModel = (ctx: Context, model: ModelSpec): FileChange[] => {
   const { schemaDir } = dbDirs(ctx)
@@ -326,22 +246,6 @@ const migrate = async (ctx: Context): Promise<void> => {
   await kit(ctx, ["migrate"])
 }
 
-const withDriver = async <T>(
-  ctx: Context,
-  fn: (driver: Awaited<ReturnType<typeof openDriver>>) => Promise<T>
-): Promise<T> => {
-  const driver = await openDriver({
-    targetPath: ctx.target.path,
-    provider: provider(ctx),
-    url: databaseUrl(ctx.target.path),
-  })
-  try {
-    return await fn(driver)
-  } finally {
-    await driver.close()
-  }
-}
-
 const status = async (ctx: Context): Promise<MigrationStatus[]> => {
   const { migrationsDir } = dbDirs(ctx)
   const journal = readJournal(join(ctx.target.path, migrationsDir))
@@ -394,49 +298,8 @@ const rollback = async (ctx: Context, step: number): Promise<string[]> => {
 }
 
 const push = async (ctx: Context): Promise<void> => {
-  const env = appEnv()
-  if (env !== "local" && env !== "preview") {
-    throw new WeeError(
-      "push-refused",
-      `db:push is allowed in local and preview only (APP_ENV=${env})`
-    )
-  }
+  assertPushAllowed()
   await kit(ctx, ["push", "--force"])
-}
-
-const seed = async (ctx: Context, opts: SeedOptions): Promise<void> => {
-  loadTargetEnv(ctx.target.path)
-  const runner = join(sourceDir(ctx), "db/seed.ts")
-  if (!existsSync(join(ctx.target.path, runner))) {
-    throw new WeeError(
-      "seed-runner-missing",
-      `${runner} is missing. Run "wee db:init" first.`
-    )
-  }
-  const args = [
-    ...(opts.file === undefined ? [] : ["--file", opts.file]),
-    ...(opts.replant ? ["--replant"] : []),
-  ]
-  const result = await runScript({
-    ctx,
-    script: runner,
-    args,
-    stdio: ctx.flags.json ? "pipe" : "inherit",
-  })
-  if (result.exitCode !== 0) {
-    throw new WeeError("seed-failed", "Seeding failed", {
-      exitCode: result.exitCode,
-      data: { stdout: result.stdout, stderr: result.stderr },
-    })
-  }
-}
-
-/** True when `db/seeds` holds at least one seed module. */
-const hasSeeds = (ctx: Context): boolean => {
-  const dir = join(ctx.target.path, sourceDir(ctx), "db/seeds")
-  return (
-    existsSync(dir) && readdirSync(dir).some((file) => file.endsWith(".ts"))
-  )
 }
 
 const prepare = async (ctx: Context): Promise<PrepareResult> => {
@@ -459,18 +322,13 @@ const prepare = async (ctx: Context): Promise<PrepareResult> => {
   }
   const seeded = fresh && hasSeeds(ctx)
   if (seeded) {
-    await seed(ctx, { replant: false })
+    await runSeed(ctx, { replant: false })
   }
   return { created, migrated, seeded }
 }
 
 const reset = async (ctx: Context): Promise<void> => {
-  if (appEnv() === "production") {
-    throw new WeeError(
-      "reset-refused",
-      "db:reset refuses to run when APP_ENV is production"
-    )
-  }
+  assertResetAllowed()
   const url = databaseUrl(ctx.target.path)
   await dropDatabase({
     targetPath: ctx.target.path,
@@ -484,47 +342,11 @@ const studio = async (ctx: Context): Promise<void> => {
   await kit(ctx, ["studio"])
 }
 
-const consoleCommand = async (ctx: Context): Promise<void> => {
-  const url = databaseUrl(ctx.target.path)
-  const p = provider(ctx)
-  const [command, args] = ((): [string, string[]] => {
-    switch (p) {
-      case "postgres":
-        return ["psql", [url]]
-      case "sqlite":
-        return ["sqlite3", [join(ctx.target.path, databaseTarget(p, url).name)]]
-      case "mysql": {
-        const parsed = new URL(url)
-        return [
-          "mysql",
-          [
-            `--host=${parsed.hostname}`,
-            ...(parsed.port.length > 0 ? [`--port=${parsed.port}`] : []),
-            `--user=${decodeURIComponent(parsed.username)}`,
-            ...(parsed.password.length > 0
-              ? [`--password=${decodeURIComponent(parsed.password)}`]
-              : []),
-            databaseTarget(p, url).name,
-          ],
-        ]
-      }
-    }
-  })()
-  const result = await x(command, args, {
-    nodeOptions: { cwd: ctx.target.path, stdio: "inherit" },
-    throwOnError: false,
-  })
-  if (result.exitCode !== 0) {
-    throw new WeeError(
-      "console-failed",
-      `${command} exited with ${result.exitCode ?? "unknown"}`
-    )
-  }
-}
-
 const drizzleAdapter: DbAdapter = {
   name: "drizzle",
   init,
+  modelPath,
+  modelTypeImport: modelPath,
   emitModel,
   emitMigration,
   emitValidator,
@@ -534,11 +356,11 @@ const drizzleAdapter: DbAdapter = {
   rollback,
   status,
   push,
-  seed,
+  seed: runSeed,
   prepare,
   reset,
   studio,
-  console: consoleCommand,
+  console: sqlShell,
 }
 
 export { drizzleAdapter }

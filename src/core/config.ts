@@ -6,6 +6,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { z } from "zod"
+import type { FileChange } from "./changes.js"
 import { WeeError } from "./errors.js"
 
 const dbConfigSchema = z.object({
@@ -99,11 +100,38 @@ const loadConfig = (options: LoadConfigOptions): LoadedConfig => {
   return { config, layout, configPath, hasConfigFile }
 }
 
+interface ConfigChangeOptions {
+  targetPath: string
+  /** The loaded config; `router` and `srcDir` seed a new file. */
+  current: AppConfig
+  patch: Partial<AppConfigInput>
+}
+
+/** Change that merges `patch` into `.app/config.json`, creating the file when absent. */
+const configChange = (options: ConfigChangeOptions): FileChange => {
+  const { targetPath, current, patch } = options
+  const path = join(CONFIG_DIR, CONFIG_FILE)
+  const file = join(targetPath, path)
+  const existing = existsSync(file)
+    ? (JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>)
+    : undefined
+  const config = {
+    ...(existing ?? { router: current.router, srcDir: current.srcDir }),
+    ...patch,
+  }
+  return {
+    kind: existing === undefined ? "create" : "modify",
+    path,
+    content: `${JSON.stringify(config, null, 2)}\n`,
+  }
+}
+
 export type { AppConfig, AppConfigInput, AppLayout, LoadedConfig }
 export {
   appConfigSchema,
   CONFIG_DIR,
   CONFIG_FILE,
+  configChange,
   loadConfig,
   ROOT_CONFIG_FILE,
 }

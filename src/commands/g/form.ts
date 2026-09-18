@@ -4,6 +4,7 @@
  * model file and `app/<plural>/actions.ts` with both actions.
  */
 import { join } from "node:path"
+import { getDbAdapter } from "../../adapters/index.js"
 import type { ModelSpec } from "../../core/adapters.js"
 import type { FileChange } from "../../core/changes.js"
 import { readIfExists } from "../../core/changes.js"
@@ -60,11 +61,8 @@ const formChanges = (
 ): FileChange[] => {
   const { model, pending = [] } = options
   const area = kebabCase(plural(model.name))
-  const modelFile = srcPath(
-    ctx,
-    ctx.config.db?.schemaDir ?? "db/schema",
-    `${kebabCase(model.table)}.ts`
-  )
+  const adapter = getDbAdapter(ctx)
+  const modelFile = adapter.modelPath(ctx, model)
   if (!existsOrPending(ctx, modelFile, pending)) {
     throw new WeeError(
       "model-missing",
@@ -82,7 +80,7 @@ const formChanges = (
   const file = formPath(ctx, model)
   const templateOptions = {
     model,
-    modelImport: relativeImport(file, modelFile),
+    modelImport: relativeImport(file, adapter.modelTypeImport(ctx, model)),
     actionsImport: relativeImport(file, actionsFile),
     libImport: relativeImport(file, srcPath(ctx, "lib", "actions.ts")),
   }

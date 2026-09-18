@@ -6,7 +6,8 @@
 import type { Attribute, DbProvider } from "../../core/adapters.js"
 import { WeeError } from "../../core/errors.js"
 import { camelCase, kebabCase } from "../../lib/inflect.js"
-import { CORE_MODULE, columnCode, enumName, quoteLiteral } from "./columns.js"
+import { enumName, quoteLiteral } from "../validator.js"
+import { CORE_MODULE, columnCode } from "./columns.js"
 import { indexCode } from "./templates.js"
 
 interface ModelEdit {
