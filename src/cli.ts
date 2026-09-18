@@ -28,6 +28,10 @@ const main = defineCommand({
     "db:reset": () => import("./commands/db.js").then((m) => m.dbReset),
     "db:studio": () => import("./commands/db.js").then((m) => m.dbStudio),
     "db:console": () => import("./commands/db.js").then((m) => m.dbConsole),
+    routes: () => import("./commands/routes.js").then((m) => m.routes),
+    console: () =>
+      import("./commands/console.js").then((m) => m.consoleCommand),
+    runner: () => import("./commands/console.js").then((m) => m.runner),
   },
 })
 
