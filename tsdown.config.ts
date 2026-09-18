@@ -1,10 +1,14 @@
 import { defineConfig } from "tsdown"
 
-// One ESM bundle plus the console/runner preload, which runs inside the
-// target app and must stay a separate file. The shebang in src/cli.ts is
+// One ESM bundle plus two runtimes that run inside the target app and must
+// stay separate files: the console/runner preload and the ci config reader. The shebang in src/cli.ts is
 // preserved by the bundler.
 export default defineConfig({
-  entry: { cli: "src/cli.ts", "runtime/preload": "src/runtime/preload.ts" },
+  entry: {
+    cli: "src/cli.ts",
+    "runtime/preload": "src/runtime/preload.ts",
+    "runtime/ci-config": "src/runtime/ci-config.ts",
+  },
   format: "esm",
   platform: "node",
   target: "node22",
