@@ -37,9 +37,12 @@ Exit code is non-zero on the first error. In `--json` mode the CLI never prompts
 | `wee g component <Name> [--area=<dir>] [--client]`, `g hook <useName>`, `g helper <name> [--shared]`, `g provider <Name>`, `g type <Name> [members...\|attrs...]` | Each writes its file and a Vitest test. `--shared` targets the only non-app workspace (or `--package`); destroy then needs the same `--package`. |
 | `wee g action <segment> <name...> [attrs...]` | Blocks in `app/<segment>/actions.ts`. `create`, `update`, `remove` bind to the segment's model; other names are generic (`publish` gives `publishPost`). Manifest name is `<segment>-<names>`. |
 | `wee g form <Model>` | Client form in `components/<plural>/<model>-form.tsx` bound to `createX`/`updateX`. Needs `g model` and `g action <plural> create update` first. |
+| `wee g resource <Name> <attr:type...> [--skip-migration] [--skip-loading] [--skip-error] [--skip-install]` | The whole CRUD flow in one manifest: model, `app/<plural>/actions.ts` with create/update/remove, form, list/new/show/edit pages with boundaries, `lib/display.ts`, a link in `components/nav.tsx` and `e2e/<plural>.spec.ts`. Installs `@playwright/test`. Render `<Nav />` from the root layout by hand. `destroy resource <Name>` takes it all back. |
+| `wee routes [--grep=<regex>]` | Table of route path, segment kinds (`static`, `dynamic`, `catch-all`, `optional-catch-all`, `group`, `parallel`, `intercepting`), file type (`page`, `layout`, `handler`, `metadata`) and, after `next build`, the rendering mode (`static`, `isr`, `dynamic`). |
+| `wee console [--sandbox]`, `wee runner <file\|expr> [--sandbox]` | Node REPL, or one expression or file, with `db`, `schema`, `services` and `auth` in scope. Runs inside the app through `bun` or `node --import tsx`. The runner exits 1 when the result is `false` or it throws. `--sandbox` rolls back on exit. |
 | `wee g env NAME[:server\|client] ...`, `wee g proxy <name> [--matcher=/a/:path*,/b]` | Env adds Zod fields to `env.ts` and keys to `.env.example`; manifest name is the joined kebab names. Proxy adds an interceptor and matcher entries to `proxy.ts`. |
 
-Attribute types: `string text integer decimal boolean datetime uuid json enum[a,b] references`. Modifiers: `unique index optional default=<v>`. See `docs/database-flow.md` for the end-to-end flow.
+Attribute types: `string text integer decimal boolean datetime uuid json enum[a,b] references`. Modifiers: `unique index optional default=<v>`. See `docs/database-flow.md`, `docs/routes-ui-flow.md` and `docs/resource-flow.md` for the end-to-end flows.
 
 ## Conventions
 

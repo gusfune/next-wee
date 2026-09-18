@@ -69,10 +69,10 @@ Acceptance: each generator emits, `destroy` reverses, `typecheck` passes after e
 
 Acceptance: `g resource Post` gives a CRUD flow that passes the generated e2e test.
 
-- [ ] `g resource` composite with one manifest
-- [ ] Nav link injection
-- [ ] `routes [--grep]` with segment kinds and rendering mode
-- [ ] `console [--sandbox]`, `runner <file|expr>`
+- [x] `g resource` composite with one manifest
+- [x] Nav link injection
+- [x] `routes [--grep]` with segment kinds and rendering mode
+- [x] `console [--sandbox]`, `runner <file|expr>`
 - [ ] Phase review
 
 ## Phase 4: Adapters
