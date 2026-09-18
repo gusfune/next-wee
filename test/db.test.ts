@@ -237,6 +237,7 @@ describe("phase 1 on sqlite", () => {
       [
         join(app, "node_modules/vitest/vitest.mjs"),
         "run",
+        "--no-color",
         "src/lib/validators",
       ],
       {

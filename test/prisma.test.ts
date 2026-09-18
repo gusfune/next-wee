@@ -280,6 +280,7 @@ describe("phase 4 prisma on sqlite", () => {
     const { output, exitCode } = await exec([
       join(app, "node_modules/vitest/vitest.mjs"),
       "run",
+      "--no-color",
       "src/lib/validators",
     ])
     expect(output).toContain("2 passed")

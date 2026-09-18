@@ -374,3 +374,4 @@ describe("phase 4 auth, jobs and mail", () => {
     expect(tree()).toEqual(baseline)
   })
 })
+      "--no-color",
