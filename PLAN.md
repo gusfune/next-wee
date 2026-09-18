@@ -91,13 +91,13 @@ Acceptance: `db:init --adapter=prisma` passes the phase 1 acceptance. Better Aut
 
 Acceptance: `wee ci` is green locally and in GitHub Actions on the resource app.
 
-- [ ] `creds:init`, `creds:edit`, `creds:show`, `creds:diff`, `creds:fetch`, `creds:sync --target=vercel`
-- [ ] `lint`, `typecheck`, `test`, `test:e2e`
-- [ ] `dev`, `build`, `start` (Turborepo delegation)
-- [ ] `ci` with `config/ci.ts`
-- [ ] `stats`, `notes`
-- [ ] `new <name>` with `--api`, `--minimal`, `--db`, `--auth`
-- [ ] Full `AGENTS.md`
+- [x] `creds:init`, `creds:edit`, `creds:show`, `creds:diff`, `creds:fetch`, `creds:sync --target=vercel`
+- [x] `lint`, `typecheck`, `test`, `test:e2e`
+- [x] `dev`, `build`, `start` (Turborepo delegation)
+- [x] `ci` with `config/ci.ts`
+- [x] `stats`, `notes`
+- [x] `new <name>` with `--api`, `--minimal`, `--db`, `--auth`
+- [x] Full `AGENTS.md`
 - [x] Phase review
 
 ## Phase 6: Extensibility

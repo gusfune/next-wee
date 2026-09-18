@@ -46,12 +46,18 @@ Exit code is non-zero on the first error. In `--json` mode the CLI never prompts
 | `wee routes [--grep=<regex>]` | Table of route path, segment kinds (`static`, `dynamic`, `catch-all`, `optional-catch-all`, `group`, `parallel`, `intercepting`), file type (`page`, `layout`, `handler`, `metadata`) and, after `next build`, the rendering mode (`static`, `isr`, `dynamic`). |
 | `wee console [--sandbox]`, `wee runner <file\|expr> [--sandbox]` | Node REPL, or one expression or file, with `db`, `schema` (Drizzle only), `services` and `auth` in scope. Runs inside the app through `bun` or `node --import tsx`. The runner exits 1 when the result is `false` or it throws. `--sandbox` rolls back on exit. |
 | `wee g env NAME[:server\|client] ...`, `wee g proxy <name> [--matcher=/a/:path*,/b]` | Env adds Zod fields to `env.ts` and keys to `.env.example`; manifest name is the joined kebab names. Proxy adds an interceptor and matcher entries to `proxy.ts`. |
+| `wee new <name> [--api] [--minimal] [--db=drizzle\|prisma] [--auth=better-auth\|placeholder] [--skip-install]` | A Next.js App Router app with wee's files in place: scripts that call `wee`, Biome, Vitest, Playwright, `config/ci.ts`, `AGENTS.md`, `CONVENTIONS.md`, a nav layout and a GitHub Actions workflow. `apps/<name>` inside a monorepo, else `./<name>` with `git init`. `--db` and `--auth` run `db:init` and `g auth` afterwards. No `--app` or `--package`. |
+| `wee dev [--port]`, `wee build`, `wee start [--port]` | `dev` runs `db:prepare`, the Inngest dev server when configured, then `next dev`. `build` typechecks first. Turborepo tasks delegate to `turbo run <task> --filter=<app>`. |
+| `wee lint`, `wee typecheck`, `wee test [path] [--watch]`, `wee test:e2e [--headed]` | Biome (`biome lint`) or ESLint; `next typegen` then `tsc --noEmit`; Vitest; Playwright after `db:prepare` (writes `playwright.config.ts` when missing). Exit code is the tool's; `--json` reports `<step>-failed` with the output. |
+| `wee ci` | Runs the `steps` from `config/ci.ts` (built-in names or `{ name, command }`) and stops at the first failure with `ci-failed`. Without the file: lint, typecheck, test, test:e2e (when `e2e/` exists), build. One line per step; `--json` gives `[{ step, status, duration }]`. |
+| `wee stats`, `wee notes` | Files, lines and code per primitive with a code-to-test ratio; `TODO`, `FIXME` and `OPTIMISE` annotations with file and line. |
+| `wee creds:init`, `creds:edit [--env]`, `creds:show [--env]`, `creds:fetch <NAME> [--env]`, `creds:diff <path>\|--enroll`, `creds:sync --target=vercel [--env]` | age-encrypted env files in `config/credentials/<env>.env.enc`; `--env` defaults to `APP_ENV`, then `local`. The recipient file is committed; the identity stays in `config/credentials/.age-identity` or `WEE_CREDENTIALS_KEY`. `diff --enroll` registers the git textconv driver. `sync` pushes every key to the linked Vercel project. |
 
-Attribute types: `string text integer decimal boolean datetime uuid json enum[a,b] references`. Modifiers: `unique index optional default=<v>`. See `docs/database-flow.md`, `docs/routes-ui-flow.md` and `docs/resource-flow.md` for the end-to-end flows.
+Attribute types: `string text integer decimal boolean datetime uuid json enum[a,b] references`. Modifiers: `unique index optional default=<v>`. See `docs/database-flow.md`, `docs/routes-ui-flow.md`, `docs/resource-flow.md`, `docs/auth-jobs-mail-flow.md` and `docs/operations-flow.md` for the end-to-end flows.
 
 ## Conventions
 
-`CONVENTIONS.md` in the target app is the source of truth for paths and decisions. Read it before you write code by hand. Prefer a generator when one exists.
+`CONVENTIONS.md` in the target app is the source of truth for paths and decisions. Read it before you write code by hand. Prefer a generator when one exists. Run `wee ci` before you hand off.
 
 Generated blocks inside existing files sit between `wee:begin <id>` and `wee:end <id>` comments. Do not edit inside those markers. `destroy` removes them.
 
@@ -65,4 +71,4 @@ bun run test
 bun run build      # dist/cli.js
 ```
 
-`bun run format` before handing off. Fixtures under `fixtures/` are repo shapes used by the tests; do not add `node_modules` to them.
+`bun run format` before handing off. Fixtures under `fixtures/` are repo shapes used by the tests; do not add `node_modules` to them. `WEE_E2E=1 bun run test` also runs the Playwright step of `wee ci` in the acceptance test; it needs a Chromium build (`bunx playwright install chromium`).
