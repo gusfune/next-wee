@@ -11,8 +11,9 @@ import { basename, join } from "node:path"
 import { start } from "node:repl"
 import { pathToFileURL } from "node:url"
 import { inspect, parseArgs } from "node:util"
+import type { Module, Scope } from "./types.js"
 
-const { values } = parseArgs({
+const { values, positionals } = parseArgs({
   options: {
     app: { type: "string" },
     src: { type: "string" },
@@ -25,11 +26,11 @@ const { values } = parseArgs({
     expr: { type: "string" },
   },
   strict: true,
+  // Tokens after "--" are the task's own args.
+  allowPositionals: true,
 })
 
-const required = (
-  name: "app" | "src" | "schema" | "provider" | "adapter" | "mode"
-): string => {
+const required = (name: "app" | "src" | "mode"): string => {
   const value = values[name]
   if (value === undefined) {
     throw new Error(`preload: --${name} is required`)
@@ -39,12 +40,9 @@ const required = (
 
 const app = required("app")
 const src = required("src")
-const schemaDir = required("schema")
-const provider = required("provider")
-const adapter = required("adapter")
 const mode = required("mode")
-
-type Module = Record<string, unknown>
+// Absent when the app has no database (tasks only).
+const { schema: schemaDir, provider, adapter } = values
 
 const importIfExists = async (file: string): Promise<Module | undefined> =>
   existsSync(file)
@@ -81,16 +79,12 @@ const loadServices = async (): Promise<Record<string, Module>> => {
   return services
 }
 
-interface Scope {
-  db: unknown
-  schema: Module | undefined
-  services: Record<string, Module>
-  auth: Module | undefined
-}
-
 const scope: Scope = {
   db: (await importIfExists(join(src, "db", "client.ts")))?.db,
-  schema: await importIfExists(join(schemaDir, "index.ts")),
+  schema:
+    schemaDir === undefined
+      ? undefined
+      : await importIfExists(join(schemaDir, "index.ts")),
   services: await loadServices(),
   auth: authScope(await importIfExists(join(src, "lib", "auth", "index.ts"))),
 }
@@ -144,14 +138,15 @@ const runExpression = async (db: unknown, expr: string): Promise<number> => {
   return codeFor(result)
 }
 
+/** Runner files export `default`; tasks export `task`. Both get the scope. */
 const runFile = async (db: unknown, file: string): Promise<number> => {
   Object.assign(globalThis, { ...scope, db })
   const module = (await import(pathToFileURL(file).href)) as Module
-  const main = module.default
+  const main = module.task ?? module.default
   if (typeof main !== "function") {
     return 0
   }
-  return codeFor(await main({ ...scope, db }))
+  return codeFor(await main({ ...scope, db, args: positionals }))
 }
 
 const body = async (db: unknown): Promise<number> => {
@@ -210,6 +205,9 @@ const runInSandbox = async (): Promise<number> => {
   const { db } = scope
   if (db === undefined || db === null) {
     throw new Error("preload: --sandbox needs src/db/client.ts")
+  }
+  if (adapter === undefined || provider === undefined) {
+    throw new Error("preload: --sandbox needs a database")
   }
   if (adapter === "prisma") {
     // Claim: the generated Prisma client always has `$transaction`.

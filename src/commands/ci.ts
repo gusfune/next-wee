@@ -7,7 +7,6 @@
  */
 import { existsSync } from "node:fs"
 import { join } from "node:path"
-import { fileURLToPath } from "node:url"
 import { x } from "tinyexec"
 import { z } from "zod"
 import { defineWeeCommand } from "../core/command.js"
@@ -16,6 +15,7 @@ import { assertAppRouter } from "../core/context.js"
 import { WeeError } from "../core/errors.js"
 import type { Row } from "../core/output.js"
 import { runScript } from "../lib/packages.js"
+import { runtimeScript } from "../lib/runtime.js"
 import type { Stdio, TaskResult } from "../lib/tasks.js"
 import { build, lint, test, testE2e, typecheck } from "../lib/tasks.js"
 import type { BuiltInStep } from "../templates/ops.js"
@@ -31,16 +31,6 @@ const stepsSchema = z.array(stepSchema)
 
 type CiStep = z.output<typeof stepSchema>
 
-/** Built runtime next to the bundle, else the source file under `src/`. */
-const configReaderPath = (): string => {
-  const built = fileURLToPath(
-    new URL("./runtime/ci-config.js", import.meta.url)
-  )
-  return existsSync(built)
-    ? built
-    : fileURLToPath(new URL("../runtime/ci-config.ts", import.meta.url))
-}
-
 /**
  * Steps from `config/ci.ts`, read through tsx or bun inside the app. With
  * no config file: the five built-in steps, minus `test:e2e` when the app
@@ -54,7 +44,7 @@ const loadSteps = async (ctx: Context): Promise<CiStep[]> => {
   }
   const result = await runScript({
     ctx,
-    script: configReaderPath(),
+    script: runtimeScript("ci-config"),
     args: [file],
     stdio: "pipe",
   })
