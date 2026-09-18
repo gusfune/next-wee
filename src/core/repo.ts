@@ -76,13 +76,16 @@ const pnpmWorkspaceGlobs = (dir: string): string[] | undefined => {
   const parsed = parseYaml(readFileSync(file, "utf8")) as {
     packages?: string[]
   } | null
-  return parsed?.packages ?? []
+  // A file with only pnpm settings (overrides, onlyBuiltDependencies) does
+  // not make the dir a monorepo root.
+  const packages = parsed?.packages ?? []
+  return packages.length === 0 ? undefined : packages
 }
 
 const isMonorepoRoot = (dir: string): boolean => {
   return (
     existsSync(join(dir, "turbo.json")) ||
-    existsSync(join(dir, "pnpm-workspace.yaml")) ||
+    pnpmWorkspaceGlobs(dir) !== undefined ||
     workspaceGlobs(readPackageJson(dir)) !== undefined
   )
 }
@@ -150,6 +153,15 @@ const listWorkspaces = async (
   return workspaces
 }
 
+/** The root as an app workspace when it is itself a Next.js app beside its packages. */
+const rootWorkspace = (
+  root: string,
+  pkg: PackageJson | undefined
+): Workspace[] =>
+  hasDependency(pkg, "next")
+    ? [{ name: pkg?.name ?? "root", path: root, isNextApp: true }]
+    : []
+
 const detectRepo = async (cwd: string): Promise<RepoInfo> => {
   const root = findRoot(cwd)
   const rootPackage = readPackageJson(root)
@@ -181,7 +193,10 @@ const detectRepo = async (cwd: string): Promise<RepoInfo> => {
     hasTurbo,
     turboTasks: readTurboTasks(root),
     packageManager,
-    workspaces: await listWorkspaces(root, globs),
+    workspaces: [
+      ...rootWorkspace(root, rootPackage),
+      ...(await listWorkspaces(root, globs)),
+    ],
   }
 }
 

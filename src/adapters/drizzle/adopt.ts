@@ -68,9 +68,10 @@ const detectDrizzleConfig = (targetPath: string): AdoptedConfig | undefined => {
   const schemaDir = normalize(globDir(schema))
   const schemaPath = join(targetPath, schemaDir)
   if (!existsSync(schemaPath) || !statSync(schemaPath).isDirectory()) {
+    const asDir = schemaDir.replace(/\.[cm]?[jt]s$/, "")
     throw new WeeError(
       "drizzle-config-unsupported",
-      `${file}: schema "${schema}" must point to a directory. wee generates one file per model there.`
+      `${file}: schema "${schema}" must point to a directory. wee generates one file per model there. Move the file to ${asDir}/index.ts, fix its relative imports, set schema to "./${asDir}" and retry.`
     )
   }
   const migrationsDir = normalize(stringOption(source, "out") ?? "drizzle")

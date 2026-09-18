@@ -1,3 +1,5 @@
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 import type { GlobalFlags } from "../src/core/context.js"
@@ -97,5 +99,43 @@ describe("buildContext", () => {
     })
     expect(ctx.config.router).toBe("pages")
     expect(() => assertAppRouter(ctx)).toThrowError(/App Router only/)
+  })
+})
+
+describe("detectRepo on hybrid layouts", () => {
+  it("treats a pnpm-workspace.yaml without packages as a single repo", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "wee-ctx-"))
+    cpSync(join(fixtures, "single-repo"), dir, { recursive: true })
+    writeFileSync(
+      join(dir, "pnpm-workspace.yaml"),
+      "overrides:\n  axios: 1.19.0\nonlyBuiltDependencies:\n  - sharp\n"
+    )
+    const ctx = await buildContext({ cwd: dir, flags: flags() })
+    expect(ctx.repo.shape).toBe("single")
+    expect(ctx.target.path).toBe(dir)
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it("lists the root as an app when it is a Next.js app with packages", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "wee-ctx-"))
+    cpSync(join(fixtures, "single-repo"), dir, { recursive: true })
+    mkdirSync(join(dir, "packages", "ui"), { recursive: true })
+    writeFileSync(
+      join(dir, "packages", "ui", "package.json"),
+      '{ "name": "ui" }\n'
+    )
+    writeFileSync(
+      join(dir, "pnpm-workspace.yaml"),
+      "packages:\n  - packages/*\n"
+    )
+    const ctx = await buildContext({ cwd: dir, flags: flags() })
+    expect(ctx.repo.shape).toBe("workspaces")
+    expect(ctx.repo.workspaces.map((workspace) => workspace.name)).toEqual([
+      "single-repo",
+      "ui",
+    ])
+    expect(ctx.target.name).toBe("single-repo")
+    expect(ctx.target.path).toBe(dir)
+    rmSync(dir, { recursive: true, force: true })
   })
 })
