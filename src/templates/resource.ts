@@ -426,8 +426,123 @@ const e2eTemplate = (model: ModelSpec): string => {
   return lines.join("\n")
 }
 
-export type { ResourceImports, ResourcePageOptions }
+interface ApiImports {
+  /** Relative import of the model's service. */
+  service: string
+  /** Relative import of the model's validator. */
+  validator: string
+}
+
+interface ApiRouteOptions {
+  model: ModelSpec
+  imports: ApiImports
+}
+
+/** `GET` (list, paginated) and `POST` (create) for `app/api/<plural>/route.ts`. */
+const apiCollectionTemplate = (options: ApiRouteOptions): string => {
+  const { model, imports } = options
+  const { name, entity, url } = resourceNames(model)
+  const names = plural(name)
+  return `/** HTTP handlers for /api${url}: list and create ${name.toLowerCase()} rows. */
+import type { NextRequest } from "next/server"
+import { NextResponse } from "next/server"
+import { z } from "zod"
+import { ${entity}QuerySchema, insert${name}Schema } from "${imports.validator}"
+import { create${name}, list${names} } from "${imports.service}"
+
+const GET = async (request: NextRequest): Promise<NextResponse> => {
+  const parsed = ${entity}QuerySchema.safeParse(
+    Object.fromEntries(new URL(request.url).searchParams)
+  )
+  const query = parsed.success ? parsed.data : ${entity}QuerySchema.parse({})
+  return NextResponse.json(await list${names}(query))
+}
+
+const POST = async (request: NextRequest): Promise<NextResponse> => {
+  const json: unknown = await request.json().catch(() => undefined)
+  const body = insert${name}Schema.safeParse(json)
+  if (!body.success) {
+    return NextResponse.json(
+      { errors: z.flattenError(body.error).fieldErrors },
+      { status: 400 }
+    )
+  }
+  return NextResponse.json(await create${name}(body.data), { status: 201 })
+}
+
+export { GET, POST }
+`
+}
+
+/** `GET`, `PATCH` and `DELETE` for one row in `app/api/<plural>/[id]/route.ts`. */
+const apiMemberTemplate = (options: ApiRouteOptions): string => {
+  const { model, imports } = options
+  const { name, url } = resourceNames(model)
+  return `/** HTTP handlers for /api${url}/[id]: show, update and delete one ${name.toLowerCase()}. */
+import type { NextRequest } from "next/server"
+import { NextResponse } from "next/server"
+import { z } from "zod"
+import { update${name}Schema } from "${imports.validator}"
+import { get${name}, remove${name}, update${name} } from "${imports.service}"
+
+interface RouteContext {
+  params: Promise<{ id: string }>
+}
+
+const notFound = (): NextResponse =>
+  NextResponse.json({ error: "${name} not found" }, { status: 404 })
+
+const GET = async (
+  _request: NextRequest,
+  { params }: RouteContext
+): Promise<NextResponse> => {
+  const { id } = await params
+  const row = await get${name}(id)
+  return row === undefined ? notFound() : NextResponse.json(row)
+}
+
+const PATCH = async (
+  request: NextRequest,
+  { params }: RouteContext
+): Promise<NextResponse> => {
+  const { id } = await params
+  const json: unknown = await request.json().catch(() => undefined)
+  const body = update${name}Schema.safeParse(json)
+  if (!body.success) {
+    return NextResponse.json(
+      { errors: z.flattenError(body.error).fieldErrors },
+      { status: 400 }
+    )
+  }
+  const row = await update${name}(id, body.data)
+  return row === undefined ? notFound() : NextResponse.json(row)
+}
+
+const DELETE = async (
+  _request: NextRequest,
+  { params }: RouteContext
+): Promise<NextResponse> => {
+  const { id } = await params
+  if ((await get${name}(id)) === undefined) {
+    return notFound()
+  }
+  await remove${name}(id)
+  return new NextResponse(null, { status: 204 })
+}
+
+export { DELETE, GET, PATCH }
+`
+}
+
+export type {
+  ApiImports,
+  ApiRouteOptions,
+  ResourceImports,
+  ResourcePageOptions,
+}
 export {
+  apiCollectionTemplate,
+  apiMemberTemplate,
   displayAttribute,
   displayLibTemplate,
   displayLibTestTemplate,

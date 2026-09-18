@@ -2,7 +2,8 @@
  * `wee g resource <Name> attr:type...`: the whole CRUD flow in one manifest.
  * Runs the model, action and form builders, writes the list, new, show and
  * edit pages with their boundaries, adds a nav link and a Playwright test.
- * `destroy resource <Name>` reverses all of it.
+ * With `--api` the run skips the UI and writes REST route handlers under
+ * `app/api/<plural>/` instead. `destroy resource <Name>` reverses all of it.
  */
 import { join } from "node:path"
 import type { ModelSpec } from "../../core/adapters.js"
@@ -18,8 +19,10 @@ import { buildModelSpec, parseAttributes } from "../../lib/attributes.js"
 import { kebabCase, plural } from "../../lib/inflect.js"
 import type { Segment } from "../../lib/segment.js"
 import { parseSegment } from "../../lib/segment.js"
-import type { ResourceImports } from "../../templates/resource.js"
+import type { ApiImports, ResourceImports } from "../../templates/resource.js"
 import {
+  apiCollectionTemplate,
+  apiMemberTemplate,
   displayLibTemplate,
   displayLibTestTemplate,
   e2eTemplate,
@@ -106,11 +109,54 @@ const dedupeEnsures = (changes: FileChange[]): FileChange[] => {
   })
 }
 
+/** REST handlers for the `--api` run: collection and member routes. */
+const apiChanges = (
+  ctx: Context,
+  options: {
+    model: ModelSpec
+    base: string
+    files: Record<keyof ResourceImports, string>
+  }
+): FileChange[] => {
+  const { model, base, files } = options
+  const collectionFile = join(
+    segmentDir(ctx, parseSegment(`api/${base}`)),
+    "route.ts"
+  )
+  const memberFile = join(
+    segmentDir(ctx, parseSegment(`api/${base}/[id]`)),
+    "route.ts"
+  )
+  const imports = (file: string): ApiImports => ({
+    service: relativeImport(file, files.service),
+    validator: relativeImport(file, files.validator),
+  })
+  return [
+    create(
+      ctx,
+      collectionFile,
+      apiCollectionTemplate({ model, imports: imports(collectionFile) })
+    ),
+    create(
+      ctx,
+      memberFile,
+      apiMemberTemplate({ model, imports: imports(memberFile) })
+    ),
+  ]
+}
+
 const resourceGenerator = defineGenerator({
   name: "resource",
-  description: "Model, actions, form, CRUD pages, nav link and e2e test",
+  description:
+    "Model, actions, form, CRUD pages, nav link and e2e test; --api writes REST handlers instead",
   args: {
     ...nameArg,
+    api: {
+      type: "boolean",
+      description:
+        "Write REST route handlers under app/api instead of the pages, form, nav link and e2e test",
+      default: false,
+    },
     "skip-migration": {
       type: "boolean",
       description: "Do not write a migration",
@@ -166,6 +212,10 @@ const resourceGenerator = defineGenerator({
       model,
       skipMigration: args["skip-migration"],
     })
+    if (args.api) {
+      changes.push(...apiChanges(ctx, { model, base, files }))
+      return dedupeEnsures(changes)
+    }
     changes.push(
       ...actionChanges(ctx, {
         segment: segments.list,
@@ -253,12 +303,12 @@ const resource = defineWeeCommand({
       generator: resourceGenerator,
       args,
     })
+    const followUps = args.api
+      ? []
+      : rowsOf(await followUpRows(ctx, args["skip-install"]))
     return {
       ...result,
-      data: [
-        ...rowsOf(result.data),
-        ...rowsOf(await followUpRows(ctx, args["skip-install"])),
-      ],
+      data: [...rowsOf(result.data), ...followUps],
     }
   },
 })

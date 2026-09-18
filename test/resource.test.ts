@@ -2,7 +2,9 @@
  * Phase 3 acceptance: `g resource Post` emits the whole CRUD flow in one
  * manifest, the result typechecks and its unit tests pass, `routes` lists
  * the four pages, `runner` evaluates against the migrated database, and
- * `destroy resource Post` returns the tree to its baseline. The generated
+ * `destroy resource Post` returns the tree to its baseline. `g resource
+ * Comment --api` writes REST handlers instead of the UI and the handlers
+ * answer against the migrated database through the runner. The generated
  * Playwright spec needs a browser and a dev server; Phase 5 `test:e2e`
  * runs it.
  */
@@ -166,6 +168,64 @@ const exec = async (args: string[]): Promise<Exec> => {
 const cli = (args: string[]): Promise<Exec> =>
   exec(["--import", "tsx", join(root, "src/cli.ts"), ...args])
 
+/**
+ * Runner script that calls the generated REST handlers end to end: create,
+ * list, show, update, delete, plus the 400 and 404 paths. Handlers take a
+ * `NextRequest`; a plain `Request` carries the same `url` and `json()`.
+ */
+const API_CHECK = `import { DELETE, GET, PATCH } from "./src/app/api/comments/[id]/route"
+import { GET as listComments, POST } from "./src/app/api/comments/route"
+
+const request = (method: string, url: string, body?: unknown): Request =>
+  new Request(url, {
+    method,
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  })
+
+const expect = (condition: boolean, label: string): void => {
+  if (!condition) {
+    throw new Error(label)
+  }
+}
+
+export default async (): Promise<boolean> => {
+  const url = "http://test/api/comments"
+
+  const bad = await POST(request("POST", url, { body: 123 }))
+  expect(bad.status === 400, "POST with a wrong field answers 400")
+
+  const created = await POST(request("POST", url, { body: "first" }))
+  expect(created.status === 201, "POST answers 201")
+  const row = (await created.json()) as { id: string }
+
+  const collection = await listComments(request("GET", url))
+  expect(collection.status === 200, "GET collection answers 200")
+  const page = (await collection.json()) as { total: number }
+  expect(page.total === 1, "collection lists the created row")
+
+  const ctx = { params: Promise.resolve({ id: row.id }) }
+  const shown = await GET(request("GET", url), ctx)
+  expect(shown.status === 200, "GET member answers 200")
+
+  const missing = { params: Promise.resolve({ id: "missing" }) }
+  const absent = await GET(request("GET", url), missing)
+  expect(absent.status === 404, "GET member answers 404 for a missing id")
+
+  const patched = await PATCH(request("PATCH", url, { body: "updated" }), ctx)
+  expect(patched.status === 200, "PATCH answers 200")
+  const updated = (await patched.json()) as { body: string }
+  expect(updated.body === "updated", "PATCH updates the row")
+
+  const removed = await DELETE(request("DELETE", url), ctx)
+  expect(removed.status === 204, "DELETE answers 204")
+
+  const gone = await GET(request("GET", url), ctx)
+  expect(gone.status === 404, "GET member answers 404 after DELETE")
+
+  return true
+}
+`
+
 describe("phase 3 resource", () => {
   beforeAll(async () => {
     enterApp()
@@ -252,6 +312,43 @@ describe("phase 3 resource", () => {
     expect(again.err).not.toContain("attributes-required")
   })
 
+  it("g resource --api writes REST handlers instead of the UI", async () => {
+    const { out } = await ok(resource, [
+      "Comment",
+      "body:text",
+      "--api",
+      "--skip-install",
+    ])
+    const rows = JSON.parse(out) as { action: string; path: string }[]
+    expect(rows.filter((row) => row.action === "note")).toHaveLength(0)
+    for (const file of [
+      "src/db/schema/comments.ts",
+      "src/lib/validators/comment.ts",
+      "src/services/comments.ts",
+      "src/app/api/comments/route.ts",
+      "src/app/api/comments/[id]/route.ts",
+      ".app/manifests/resource-comment.json",
+    ]) {
+      expect(has(file), file).toBe(true)
+    }
+    expect(has(".app/manifests/model-comment.json")).toBe(false)
+    for (const file of [
+      "src/app/comments/page.tsx",
+      "src/components/comments/comment-form.tsx",
+      "e2e/comments.spec.ts",
+    ]) {
+      expect(has(file), file).toBe(false)
+    }
+    expect(read("src/components/nav.tsx")).not.toContain("/comments")
+    const collection = read("src/app/api/comments/route.ts")
+    expect(collection).toContain("export { GET, POST }")
+    expect(collection).toContain("insertCommentSchema")
+    expect(collection).toContain("listComments(query)")
+    const member = read("src/app/api/comments/[id]/route.ts")
+    expect(member).toContain("export { DELETE, GET, PATCH }")
+    expect(member).toContain("updateCommentSchema")
+  })
+
   it("routes lists the four pages with their segment kinds", async () => {
     const { out } = await ok(routes, ["--grep=posts"])
     const rows = JSON.parse(out) as {
@@ -286,10 +383,11 @@ describe("phase 3 resource", () => {
     const { output, exitCode } = await exec([
       join(app, "node_modules/vitest/vitest.mjs"),
       "run",
+      "--no-color",
       "src/components",
       "src/lib",
     ])
-    expect(output).toContain("Test Files  3 passed")
+    expect(output).toContain("Test Files  4 passed")
     expect(exitCode).toBe(0)
   }, 60_000)
 
@@ -323,6 +421,19 @@ describe("phase 3 resource", () => {
     const file = await cli(["runner", "check.ts"])
     expect(file.exitCode).toBe(0)
     rmSync(join(app, "check.ts"))
+  }, 60_000)
+
+  it("the API handlers answer against the migrated database", async () => {
+    await ok(dbMigrate, [])
+    writeFileSync(join(app, "api-check.ts"), API_CHECK)
+    const check = await cli(["runner", "api-check.ts"])
+    expect(check.output).toBe("")
+    expect(check.exitCode).toBe(0)
+    rmSync(join(app, "api-check.ts"))
+    await ok(destroy, ["resource", "Comment"])
+    expect(has("src/app/api/comments/route.ts")).toBe(false)
+    expect(has("src/app/api/comments/[id]/route.ts")).toBe(false)
+    expect(has("src/services/comments.ts")).toBe(false)
   }, 60_000)
 
   it("destroy resource returns the tree to the baseline", async () => {

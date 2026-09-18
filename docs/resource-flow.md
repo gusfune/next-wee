@@ -31,6 +31,30 @@ builder) are collapsed to the first one.
 manifest, so `g validator Post` after `g resource Post` still finds the
 attribute list.
 
+## --api: REST handlers instead of the UI
+
+`g resource Comment body:text --api` runs step 1 (model, validator,
+service, migration) and then, instead of steps 2 to 5, writes two route
+files under `app/api/`:
+
+- `app/api/comments/route.ts`: `GET` parses `page` and `perPage` from the
+  query string with `commentQuerySchema` (falling back to its defaults)
+  and answers the `listComments` page; `POST` validates the JSON body
+  with `insertCommentSchema`, answers 400 with the flattened field errors
+  or 201 with the created row.
+- `app/api/comments/[id]/route.ts`: `GET` answers the row or a 404
+  `{ error }`; `PATCH` validates with `updateCommentSchema` (the partial
+  schema), answering 400, 404 or the updated row; `DELETE` answers 404
+  for a missing row, else 204.
+
+No pages, form, nav link, display lib or Playwright spec, so the command
+also skips the `@playwright/test` install and the `<Nav />` note. The
+handlers import the service, which imports `"server-only"`, so — like
+services — they get no Vitest unit test; the acceptance suite exercises
+them against a migrated database through `wee runner`. The manifest is
+still `resource-comment.json`, so `destroy resource Comment` reverses
+the run.
+
 ## Pages
 
 The list page parses `searchParams` with `postQuerySchema` (page, perPage),

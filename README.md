@@ -67,7 +67,7 @@ Attribute types: `string text integer decimal boolean datetime uuid json enum[a,
 | `wee g action <segment> <name...>` | Server actions in `app/<segment>/actions.ts`; `create`, `update` and `remove` bind to the segment's model. |
 | `wee g form <Model>` | Client form bound to the create and update actions. |
 | `wee g env NAME[:server\|client] ...`, `wee g proxy <name> [--matcher=...]` | Typed env variables in `env.ts` and `.env.example`; request interceptors in `proxy.ts`. |
-| `wee g resource <Name> <attr:type...>` | The whole CRUD flow in one manifest: model, actions, form, list/new/show/edit pages, nav link and a Playwright spec. |
+| `wee g resource <Name> <attr:type...>` | The whole CRUD flow in one manifest: model, actions, form, list/new/show/edit pages, nav link and a Playwright spec. `--api` writes REST handlers under `app/api/<plural>/` instead of the UI. |
 | `wee routes [--grep=<regex>]` | Route table with segment kinds, file type and, after `next build`, the rendering mode. |
 
 ### Auth, jobs and mail
