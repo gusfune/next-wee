@@ -51,9 +51,11 @@ Exit code is non-zero on the first error. In `--json` mode the CLI never prompts
 | `wee lint`, `wee typecheck`, `wee test [path] [--watch]`, `wee test:e2e [--headed]` | Biome (`biome lint`) or ESLint; `next typegen` then `tsc --noEmit`; Vitest; Playwright after `db:prepare` (writes `playwright.config.ts` when missing). Exit code is the tool's; `--json` reports `<step>-failed` with the output. |
 | `wee ci` | Runs the `steps` from `config/ci.ts` (built-in names or `{ name, command }`) and stops at the first failure with `ci-failed`. Without the file: lint, typecheck, test, test:e2e (when `e2e/` exists), build. One line per step; `--json` gives `[{ step, status, duration }]`. |
 | `wee stats`, `wee notes` | Files, lines and code per primitive with a code-to-test ratio; `TODO`, `FIXME` and `OPTIMISE` annotations with file and line. |
+| `wee g generator <Name>` | Custom generator in `tools/generators/<name>/index.ts` with a `templates/<name>.ts.tpl`. Discovered by directory name: `wee g <name> <Name>` runs it with `--dry-run`, `--json` and `destroy` like a built-in. Depends on `next-wee` for types only. |
+| `wee g task <name>`, `wee <name> [args...]` | Task in `tools/tasks/<kebab-name>.ts` exporting `task(ctx: TaskContext)`. Runs as `wee <name>` (colon or dash spelling) with `db`, `schema`, `services`, `auth` and `args` in scope; no database needed. Returns `false` or throws to exit 1. |
 | `wee creds:init`, `creds:edit [--env]`, `creds:show [--env]`, `creds:fetch <NAME> [--env]`, `creds:diff <path>\|--enroll`, `creds:sync --target=vercel [--env]` | age-encrypted env files in `config/credentials/<env>.env.enc`; `--env` defaults to `APP_ENV`, then `local`. The recipient file is committed; the identity stays in `config/credentials/.age-identity` or `WEE_CREDENTIALS_KEY`. `diff --enroll` registers the git textconv driver. `sync` pushes every key to the linked Vercel project. |
 
-Attribute types: `string text integer decimal boolean datetime uuid json enum[a,b] references`. Modifiers: `unique index optional default=<v>`. See `docs/database-flow.md`, `docs/routes-ui-flow.md`, `docs/resource-flow.md`, `docs/auth-jobs-mail-flow.md` and `docs/operations-flow.md` for the end-to-end flows.
+Attribute types: `string text integer decimal boolean datetime uuid json enum[a,b] references`. Modifiers: `unique index optional default=<v>`. See `docs/database-flow.md`, `docs/routes-ui-flow.md`, `docs/resource-flow.md`, `docs/auth-jobs-mail-flow.md`, `docs/operations-flow.md` and `docs/extensibility-flow.md` for the end-to-end flows.
 
 ## Conventions
 

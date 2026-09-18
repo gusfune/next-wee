@@ -28,6 +28,7 @@ This app is driven by the \`wee\` CLI. Use a generator before you write boilerpl
 | \`${wee} dev\`, \`build\`, \`start\`, \`lint\`, \`typecheck\`, \`test\`, \`test:e2e\`, \`ci\` | Run and check the app |
 | \`${wee} creds:edit --env=<name>\`, \`creds:show\`, \`creds:sync --target=vercel\` | Encrypted credentials in \`config/credentials/\` |
 | \`${wee} routes\`, \`stats\`, \`notes\`, \`console\`, \`runner <expr>\` | Inspect routes, code size, TODO annotations; evaluate code against the database |
+| \`${wee} g generator <Name>\`, \`g task <name>\`, \`${wee} <task>\` | Custom generators in \`tools/generators/\`, tasks in \`tools/tasks/\` run with the app context |
 
 Attribute types: \`string text integer decimal boolean datetime uuid json enum[a,b] references\`. Modifiers: \`unique index optional default=<v>\`.
 `

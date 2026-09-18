@@ -104,7 +104,7 @@ Acceptance: `wee ci` is green locally and in GitHub Actions on the resource app.
 
 Acceptance: a custom generator runs with `--dry-run`, `--json` and `destroy` without CLI changes.
 
-- [ ] `g generator <Name>`
-- [ ] `g task <name>`
-- [ ] Custom generator loading from `tools/generators/`
+- [x] `g generator <Name>`
+- [x] `g task <name>`
+- [x] Custom generator loading from `tools/generators/`
 - [x] Phase review
