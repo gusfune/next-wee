@@ -32,6 +32,8 @@ const main = defineCommand({
     console: () =>
       import("./commands/console.js").then((m) => m.consoleCommand),
     runner: () => import("./commands/console.js").then((m) => m.runner),
+    "mail:preview": () =>
+      import("./commands/mail.js").then((m) => m.mailPreview),
   },
 })
 

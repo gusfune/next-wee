@@ -22,6 +22,11 @@ const g = defineCommand({
     proxy: () => import("./proxy.js").then((m) => m.proxy),
     action: () => import("./action.js").then((m) => m.action),
     resource: () => import("./resource.js").then((m) => m.resource),
+    auth: () => import("./auth.js").then((m) => m.auth),
+    "auth:provider": () =>
+      import("./auth-provider.js").then((m) => m.authProvider),
+    job: () => import("./job.js").then((m) => m.job),
+    email: () => import("./email.js").then((m) => m.email),
   },
 })
 

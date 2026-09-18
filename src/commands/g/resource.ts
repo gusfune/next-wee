@@ -16,7 +16,6 @@ import { WeeError } from "../../core/errors.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
 import { buildModelSpec, parseAttributes } from "../../lib/attributes.js"
 import { kebabCase, plural } from "../../lib/inflect.js"
-import { installPackages } from "../../lib/packages.js"
 import type { Segment } from "../../lib/segment.js"
 import { parseSegment } from "../../lib/segment.js"
 import type { ResourceImports } from "../../templates/resource.js"
@@ -43,6 +42,7 @@ import {
   segmentDir,
   srcPath,
 } from "./paths.js"
+import { installRows, rowsOf } from "./setup.js"
 import { attributeArgs, nameArg } from "./shared.js"
 
 interface PageOptions {
@@ -216,18 +216,6 @@ const resourceGenerator = defineGenerator({
 
 const E2E_PACKAGE = "@playwright/test"
 
-const hasPlaywright = (ctx: Context): boolean => {
-  const text = readIfExists(join(ctx.target.path, "package.json")) ?? "{}"
-  const pkg = JSON.parse(text) as {
-    dependencies?: Record<string, string>
-    devDependencies?: Record<string, string>
-  }
-  return (
-    pkg.dependencies?.[E2E_PACKAGE] !== undefined ||
-    pkg.devDependencies?.[E2E_PACKAGE] !== undefined
-  )
-}
-
 /**
  * Rows after the generator ran: the Playwright install (the e2e spec fails
  * the app's typecheck without it) and a reminder to render `<Nav />` when
@@ -237,22 +225,14 @@ const followUpRows = async (
   ctx: Context,
   skipInstall: boolean
 ): Promise<CommandResult["data"]> => {
-  const rows: Record<string, string>[] = []
-  if (!hasPlaywright(ctx)) {
-    if (ctx.flags.dryRun || skipInstall) {
-      rows.push({
-        action: "note",
-        path: `add ${E2E_PACKAGE} as a devDependency for e2e/`,
-      })
-    } else {
-      await installPackages({
-        ctx,
-        dependencies: [],
-        devDependencies: [E2E_PACKAGE],
-      })
-      rows.push({ action: "install", path: E2E_PACKAGE })
-    }
-  }
+  const rows = rowsOf(
+    await installRows({
+      ctx,
+      dependencies: [],
+      devDependencies: [E2E_PACKAGE],
+      skipInstall,
+    })
+  )
   const layout = srcPath(ctx, "app", "layout.tsx")
   const source = readIfExists(join(ctx.target.path, layout)) ?? ""
   if (!source.includes("<Nav")) {
@@ -273,11 +253,12 @@ const resource = defineWeeCommand({
       generator: resourceGenerator,
       args,
     })
-    const rows = Array.isArray(result.data) ? result.data : [result.data]
-    const extra = await followUpRows(ctx, args["skip-install"])
     return {
       ...result,
-      data: [...rows, ...(Array.isArray(extra) ? extra : [extra])],
+      data: [
+        ...rowsOf(result.data),
+        ...rowsOf(await followUpRows(ctx, args["skip-install"])),
+      ],
     }
   },
 })
