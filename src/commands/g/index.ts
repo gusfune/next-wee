@@ -21,6 +21,7 @@ const g = defineCommand({
     env: () => import("./env.js").then((m) => m.env),
     proxy: () => import("./proxy.js").then((m) => m.proxy),
     action: () => import("./action.js").then((m) => m.action),
+    resource: () => import("./resource.js").then((m) => m.resource),
   },
 })
 
