@@ -1,6 +1,6 @@
 {
   "name": "next-wee",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Rails-grade command tooling for Next.js App Router apps",
   "type": "module",
   "license": "MIT",
@@ -27,6 +27,7 @@
   ],
   "scripts": {
     "build": "tsdown",
+    "prepublishOnly": "bun run lint && bun run typecheck && bun run build",
     "dev": "tsdown --watch",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
