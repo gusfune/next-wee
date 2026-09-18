@@ -8,6 +8,14 @@
     "wee": "./dist/cli.js",
     "we": "./dist/cli.js"
   },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist"
   ],
