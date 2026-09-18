@@ -16,6 +16,12 @@ Work we postponed on purpose, and issues we found and did not fix in the phase t
 | Adoption of a Drizzle config that uses a `schema` array, a single schema file or a computed value | Phase 1 | `adopt.ts` reads string literals only and needs a schema directory for the barrel. Fails with `drizzle-config-unsupported` and names the fix. | On request |
 | Adoption of a client that does not live at `src/db/client.ts` | Phase 1 | Generated services import `../db/client`. Adoption creates that file when missing; an app with a client elsewhere gets two clients until the user points one at the other. Needs a `clientPath` config field. | Phase 3 |
 | Manifest args for `--force` regeneration of validator and service | Phase 1 | A `--force` run writes `modify` changes; `destroy` restores the previous file, which is the older generated version. Acceptable for now. | Phase 6 |
+| Intercepting (`(.)`) and parallel (`@slot`) route segments | Phase 2 | `parseSegment` accepts static parts, `(group)` and `[param]` forms only. Fails with `invalid-segment`. | On request |
+| `g form` segment choice | Phase 2 | The form always binds to `app/<plural>/actions.ts` and lives in `components/<plural>/`. A `--segment` flag would cover nested resources. | Phase 3 (`g resource`) |
+| `robots.ts` and per-segment sitemaps | Phase 2 | `g metadata --sitemap` writes one app-wide `app/sitemap.ts`; a second segment needs `--force`. | On request |
+| `g env` options: optional variables, non-string types | Phase 2 | Every variable is `z.string()` required. | On request |
+| Removing one variable or one action from a multi-item run | Phase 2 | One manifest per run; `destroy` reverses the whole run. Split runs to keep them separate. | Phase 6 |
+| shadcn/ui as an integrated part of the generators | Phase 2 | `g component`, `g form`, `g page` and `g provider` emit plain HTML elements. When the app has `components.json`, they should import shadcn primitives (`Button`, `Input`, `Field`, `Card`) from `components/ui/`, run `shadcn add` for the ones that are missing, and `g provider Theme` should wrap `next-themes`. Needs a UI adapter next to `DbAdapter` so the plain-HTML output stays the default. | Phase 4 (adapters) |
 
 ## Known issues
 
@@ -28,3 +34,6 @@ Work we postponed on purpose, and issues we found and did not fix in the phase t
 | `db:rollback` matches applied rows by `created_at`, which drizzle sets to the journal `when`. A hand-edited journal breaks the match. | Phase 1 | Documented. `db:status` shows the mismatch as `pending`. |
 | Human-mode output of `db:migrate` follows drizzle-kit's spinner line without a newline. | Phase 1 | Cosmetic. Row output is suppressed unless `--json`. |
 | `test/db.test.ts` symlinks wee's `node_modules` into the scratch app, so the generated app resolves drizzle from wee's tree, not from a real install. | Phase 1 | Acceptable until a fixture with its own install exists. |
+| `destroy form` leaves `app/<plural>/actions.ts` in place (it only imports it), and `destroy action` removes the file the form imports. | Phase 2 | By design: each manifest owns its own files. `destroy action` could warn when a form still imports it. |
+| Injected blocks in `actions.ts` carry their own `import` lines mid-file. ESM hoists them, but a strict linter may flag the order. | Phase 2 | Cosmetic. Hoisting imports into the header would need a merge step in `inject`. |
+| Generated `.test.tsx` files need JSX enabled in the app's Vitest config (`jsx: "react-jsx"` in `tsconfig.json`, or an `oxc`/`esbuild` jsx setting). | Phase 2 | Documented in `docs/routes-ui-flow.md`. `g page` could scaffold a Vitest config in Phase 5. |

@@ -58,11 +58,11 @@ Acceptance: `g model` then `db:migrate` produces a queryable table and a passing
 
 Acceptance: each generator emits, `destroy` reverses, `typecheck` passes after every run.
 
-- [ ] `g page` with `loading.tsx`, `error.tsx`, `--layout`, `--skip-loading`, `--skip-error`
-- [ ] `g layout`, `g handler --methods`, `g metadata --sitemap --og`
-- [ ] `g component --area --client` with test
-- [ ] `g form`, `g hook`, `g helper --shared`, `g provider`, `g type`
-- [ ] `g env`, `g proxy --matcher`, `g action`
+- [x] `g page` with `loading.tsx`, `error.tsx`, `--layout`, `--skip-loading`, `--skip-error`
+- [x] `g layout`, `g handler --methods`, `g metadata --sitemap --og`
+- [x] `g component --area --client` with test
+- [x] `g form`, `g hook`, `g helper --shared`, `g provider`, `g type`
+- [x] `g env`, `g proxy --matcher`, `g action`
 - [ ] Phase review
 
 ## Phase 3: Resource

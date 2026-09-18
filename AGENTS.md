@@ -32,6 +32,12 @@ Exit code is non-zero on the first error. In `--json` mode the CLI never prompts
 | `wee db:generate [--name]`, `db:migrate`, `db:rollback [--step=n]`, `db:status` | Migration lifecycle. Rollback runs `<tag>.down.sql`. |
 | `wee db:push`, `db:seed [--file]`, `db:seed:replant [--file]` | Push is local/preview only. Seeds live in `src/db/seeds/`. |
 | `wee db:prepare`, `db:reset`, `db:studio`, `db:console` | Create + migrate + seed; reset refuses in production. |
+| `wee g page <segment> [--layout] [--skip-loading] [--skip-error]` | `page.tsx`, `loading.tsx`, `error.tsx` (and `layout.tsx`) under `app/<segment>/`. Segments take `[id]`, `[...slug]`, `[[...slug]]` and `(group)`. |
+| `wee g layout <segment>`, `wee g handler <segment> [--methods=GET,POST]`, `wee g metadata <segment> [--sitemap] [--og]` | Layout; `route.ts` with typed methods and a Zod body schema; `app/sitemap.ts` and `opengraph-image.tsx` (both when no flag). |
+| `wee g component <Name> [--area=<dir>] [--client]`, `g hook <useName>`, `g helper <name> [--shared]`, `g provider <Name>`, `g type <Name> [members...\|attrs...]` | Each writes its file and a Vitest test. `--shared` targets the only non-app workspace (or `--package`); destroy then needs the same `--package`. |
+| `wee g action <segment> <name...> [attrs...]` | Blocks in `app/<segment>/actions.ts`. `create`, `update`, `remove` bind to the segment's model; other names are generic (`publish` gives `publishPost`). Manifest name is `<segment>-<names>`. |
+| `wee g form <Model>` | Client form in `components/<plural>/<model>-form.tsx` bound to `createX`/`updateX`. Needs `g model` and `g action <plural> create update` first. |
+| `wee g env NAME[:server\|client] ...`, `wee g proxy <name> [--matcher=/a/:path*,/b]` | Env adds Zod fields to `env.ts` and keys to `.env.example`; manifest name is the joined kebab names. Proxy adds an interceptor and matcher entries to `proxy.ts`. |
 
 Attribute types: `string text integer decimal boolean datetime uuid json enum[a,b] references`. Modifiers: `unique index optional default=<v>`. See `docs/database-flow.md` for the end-to-end flow.
 
