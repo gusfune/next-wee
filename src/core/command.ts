@@ -47,7 +47,9 @@ interface WeeCommandDef<T extends ArgsDef> {
   args?: T
   run: (
     ctx: Context,
-    args: CommandArgs<T>
+    args: CommandArgs<T>,
+    /** The tokens after the command name, for commands that forward them. */
+    rawArgs: string[]
   ) => Promise<CommandResult | undefined>
 }
 
@@ -66,11 +68,11 @@ const defineWeeCommand = <T extends ArgsDef>(
   return defineCommand<T & GlobalArgs>({
     meta: def.meta,
     args,
-    run: async ({ args: parsed }) => {
+    run: async ({ args: parsed, rawArgs }) => {
       const flags = readGlobalFlags(parsed)
       try {
         const ctx = await buildContext({ cwd: process.cwd(), flags })
-        const result = await def.run(ctx, parsed)
+        const result = await def.run(ctx, parsed, rawArgs)
         if (result !== undefined) {
           emit({
             json: flags.json,

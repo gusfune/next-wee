@@ -16,24 +16,40 @@ import { z } from "zod"
 import { WeeError } from "./errors.js"
 import { injectBlock } from "./inject.js"
 
-type FileChange =
-  | { kind: "create"; path: string; content: string }
-  | { kind: "modify"; path: string; content: string }
+const fileChangeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("create"),
+    path: z.string(),
+    content: z.string(),
+  }),
+  z.object({
+    kind: z.literal("modify"),
+    path: z.string(),
+    content: z.string(),
+  }),
   /**
    * Creates the file when it is missing and leaves it alone otherwise. For
    * files shared by several runs (`actions.ts`, `env.ts`, `proxy.ts`).
    * `destroy` deletes it only when no other manifest and no marker block
    * refers to it.
    */
-  | { kind: "ensure"; path: string; content: string }
-  | {
-      kind: "inject"
-      path: string
-      marker: string
-      content: string
-      after?: string | undefined
-    }
-  | { kind: "delete"; path: string }
+  z.object({
+    kind: z.literal("ensure"),
+    path: z.string(),
+    content: z.string(),
+  }),
+  z.object({
+    kind: z.literal("inject"),
+    path: z.string(),
+    marker: z.string(),
+    content: z.string(),
+    after: z.string().optional(),
+  }),
+  z.object({ kind: z.literal("delete"), path: z.string() }),
+])
+
+/** One planned change. A schema, because custom generators return these over the wire. */
+type FileChange = z.output<typeof fileChangeSchema>
 
 const appliedChangeSchema = z.object({
   kind: z.enum(["create", "modify", "ensure", "inject", "delete"]),
@@ -191,6 +207,7 @@ export {
   applyChanges,
   createOrReplace,
   describeChanges,
+  fileChangeSchema,
   readIfExists,
   sha256,
   writeFile,

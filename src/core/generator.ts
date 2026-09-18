@@ -31,16 +31,23 @@ interface RunGeneratorOptions<T extends ArgsDef> {
   args: ParsedArgs<T>
 }
 
-const runGenerator = async <T extends ArgsDef>(
-  options: RunGeneratorOptions<T>
-): Promise<CommandResult> => {
-  const { ctx, generator, args } = options
-  const name = generator.manifestName(args)
-  const changes = await generator.run(ctx, args)
+interface RecordRunOptions {
+  ctx: Context
+  /** Generator name, built-in or custom. */
+  generator: string
+  name: string
+  /** Parsed args including `_`; recorded in the manifest. */
+  args: Record<string, unknown>
+  changes: FileChange[]
+}
+
+/** Applies a generator's changes, writes the manifest and returns the rows. */
+const recordGeneratorRun = (options: RecordRunOptions): CommandResult => {
+  const { ctx, generator, name, args, changes } = options
   if (changes.length === 0) {
     throw new WeeError(
       "nothing-to-do",
-      `${generator.name} ${name} produced no changes`
+      `${generator} ${name} produced no changes`
     )
   }
   const applied = applyChanges({
@@ -50,31 +57,48 @@ const runGenerator = async <T extends ArgsDef>(
   })
   // Positionals are kept so later generators (validator, service) can reuse
   // the attribute list a model was created with.
-  const positional = (args as ParsedArgs)._
+  const { _: positional, ...flags } = args
   const recordedArgs = {
-    ...Object.fromEntries(Object.entries(args).filter(([key]) => key !== "_")),
-    ...(positional.length > 0 ? { positional } : {}),
+    ...flags,
+    ...(Array.isArray(positional) && positional.length > 0
+      ? { positional }
+      : {}),
   }
   writeManifest({
     targetPath: ctx.target.path,
-    generator: generator.name,
+    generator,
     name,
     cliVersion: ctx.cliVersion,
     args: recordedArgs,
     changes: applied,
     dryRun: ctx.flags.dryRun,
   })
-  const manifest = manifestPath(ctx.target.path, generator.name, name).replace(
+  const manifest = manifestPath(ctx.target.path, generator, name).replace(
     `${ctx.target.path}/`,
     ""
   )
   return {
     title: ctx.flags.dryRun
-      ? `dry-run: ${generator.name} ${name}`
-      : `${generator.name} ${name}`,
+      ? `dry-run: ${generator} ${name}`
+      : `${generator} ${name}`,
     data: [...describeChanges(changes), { action: "manifest", path: manifest }],
   }
 }
 
+const runGenerator = async <T extends ArgsDef>(
+  options: RunGeneratorOptions<T>
+): Promise<CommandResult> => {
+  const { ctx, generator, args } = options
+  const name = generator.manifestName(args)
+  const changes = await generator.run(ctx, args)
+  return recordGeneratorRun({
+    ctx,
+    generator: generator.name,
+    name,
+    args: args as ParsedArgs,
+    changes,
+  })
+}
+
 export type { GeneratorDef }
-export { defineGenerator, runGenerator }
+export { defineGenerator, recordGeneratorRun, runGenerator }
