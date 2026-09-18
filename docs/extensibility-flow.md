@@ -2,7 +2,7 @@
 
 How an app adds its own generators and tasks, how the CLI finds them, and
 how a custom generator gets `--dry-run`, `--json` and `destroy` for free.
-Phase 6 of PLAN.md.
+Phase 6.
 
 ## Discovery
 

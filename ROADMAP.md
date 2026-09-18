@@ -1,6 +1,6 @@
 # Roadmap
 
-Work we postponed on purpose, and issues we found and did not fix in the phase that found them. PLAN.md says what each phase ships; this file says what each phase left behind and why. Add an entry when you defer something. Remove it when it ships.
+Work we postponed on purpose, and issues we found and did not fix in the phase that found them. README.md says what ships; this file says what each phase left behind and why. Add an entry when you defer something. Remove it when it ships.
 
 ## Postponed
 

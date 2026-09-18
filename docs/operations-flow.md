@@ -2,7 +2,7 @@
 
 How `wee new` scaffolds an app, how the run and check commands reach the
 app's own tools, how `wee ci` reads `config/ci.ts`, and how credentials are
-stored and synced. Phase 5 of PLAN.md.
+stored and synced. Phase 5.
 
 ## `new <name>`
 
