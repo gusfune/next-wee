@@ -5,8 +5,10 @@
  * action called `<name><Model>`, e.g. `publishPost`. One manifest per run,
  * named `<segment>-<names>`.
  */
+import type { ModelSpec } from "../../core/adapters.js"
 import type { FileChange } from "../../core/changes.js"
 import { defineWeeCommand } from "../../core/command.js"
+import type { Context } from "../../core/context.js"
 import { assertAppRouter } from "../../core/context.js"
 import { WeeError } from "../../core/errors.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
@@ -23,7 +25,7 @@ import {
 } from "../../templates/app.js"
 import {
   assertBlockAbsent,
-  exists,
+  existsOrPending,
   relativeImport,
   segmentDir,
   srcPath,
@@ -57,6 +59,60 @@ interface BlockOptions {
   actionsFile: string
 }
 
+/** Path of the actions file for a segment, e.g. `src/app/posts/actions.ts`. */
+const actionsPath = (ctx: Context, segment: Segment): string =>
+  `${segmentDir(ctx, segment)}/actions.ts`
+
+interface ActionChangesOptions {
+  segment: Segment
+  names: string[]
+  /** Model for `create`/`update`/`remove`. Resolved lazily when omitted. */
+  model?: ModelSpec | undefined
+  /** Changes queued by an enclosing generator, e.g. `g resource`. */
+  pending?: readonly FileChange[] | undefined
+}
+
+/** Changes for a set of actions on one segment: lib, actions file, one block per action. */
+const actionChanges = (
+  ctx: Context,
+  options: ActionChangesOptions
+): FileChange[] => {
+  const { segment, names, pending = [] } = options
+  const actionsFile = actionsPath(ctx, segment)
+  const libFile = srcPath(ctx, "lib", "actions.ts")
+  const changes: FileChange[] = [
+    { kind: "ensure", path: libFile, content: actionsLibTemplate() },
+    {
+      kind: "ensure",
+      path: actionsFile,
+      content: actionsTemplate({
+        segment,
+        libImport: relativeImport(actionsFile, libFile),
+      }),
+    },
+  ]
+  const modelBlock =
+    options.model !== undefined && names.some(isModelAction)
+      ? modelBlockFactory(ctx, {
+          segment,
+          actionsFile,
+          model: options.model,
+          pending,
+        })
+      : undefined
+  for (const name of names) {
+    const blockOptions: BlockOptions = { segment, name, actionsFile }
+    const { fn, content } =
+      modelBlock !== undefined && isModelAction(name)
+        ? modelBlock(name)
+        : genericBlock(blockOptions)
+    const marker = `action-${kebabCase(fn)}`
+    assertBlockAbsent(ctx, actionsFile, marker)
+    changes.push({ kind: "inject", path: actionsFile, marker, content })
+  }
+  return changes
+}
+
 const actionGenerator = defineGenerator({
   name: "action",
   description: "Server actions for a segment",
@@ -67,44 +123,22 @@ const actionGenerator = defineGenerator({
     assertAppRouter(ctx)
     const segment = parseSegment(args.segment)
     const names = actionNames(args._)
-    const actionsFile = `${segmentDir(ctx, segment)}/actions.ts`
-    const libFile = srcPath(ctx, "lib", "actions.ts")
-    const changes: FileChange[] = [
-      { kind: "ensure", path: libFile, content: actionsLibTemplate() },
-      {
-        kind: "ensure",
-        path: actionsFile,
-        content: actionsTemplate({
-          segment,
-          libImport: relativeImport(actionsFile, libFile),
-        }),
-      },
-    ]
-    const modelBlock = names.some(isModelAction)
-      ? modelBlockFactory(ctx, {
-          segment,
-          actionsFile,
-          attributes: splitPositionals(args._).attributes,
-        })
+    const model = names.some(isModelAction)
+      ? resolveModel(
+          ctx,
+          segment.modelName,
+          splitPositionals(args._).attributes
+        )
       : undefined
-    for (const name of names) {
-      const options: BlockOptions = { segment, name, actionsFile }
-      const { fn, content } =
-        modelBlock !== undefined && isModelAction(name)
-          ? modelBlock(name)
-          : genericBlock(options)
-      const marker = `action-${kebabCase(fn)}`
-      assertBlockAbsent(ctx, actionsFile, marker)
-      changes.push({ kind: "inject", path: actionsFile, marker, content })
-    }
-    return changes
+    return actionChanges(ctx, { segment, names, model })
   },
 })
 
 interface ModelBlockFactoryOptions {
   segment: Segment
   actionsFile: string
-  attributes: string[]
+  model: ModelSpec
+  pending: readonly FileChange[]
 }
 
 interface Block {
@@ -112,13 +146,12 @@ interface Block {
   content: string
 }
 
-/** Resolves the model once and returns a builder for its create/update/remove blocks. */
+/** Checks the model files and returns a builder for its create/update/remove blocks. */
 const modelBlockFactory = (
-  ctx: Parameters<typeof resolveModel>[0],
+  ctx: Context,
   options: ModelBlockFactoryOptions
 ): ((name: ModelAction) => Block) => {
-  const { segment, actionsFile, attributes } = options
-  const model = resolveModel(ctx, segment.modelName, attributes)
+  const { segment, actionsFile, model, pending } = options
   const validatorFile = srcPath(
     ctx,
     "lib",
@@ -131,7 +164,7 @@ const modelBlockFactory = (
     `${kebabCase(plural(model.name))}.ts`
   )
   const missing = [validatorFile, serviceFile].filter(
-    (file) => !exists(ctx, file)
+    (file) => !existsOrPending(ctx, file, pending)
   )
   if (missing.length > 0) {
     throw new WeeError(
@@ -178,4 +211,4 @@ const action = defineWeeCommand({
   run: (ctx, args) => runGenerator({ ctx, generator: actionGenerator, args }),
 })
 
-export { action, actionGenerator }
+export { action, actionChanges, actionGenerator, actionsPath }

@@ -60,6 +60,19 @@ const exists = (ctx: Context, path: string): boolean =>
   existsSync(join(ctx.target.path, path))
 
 /**
+ * True when the file is on disk or a change in `pending` writes it. Composite
+ * generators (`g resource`) build the whole list before anything is written,
+ * so the sub-generators check both.
+ */
+const existsOrPending = (
+  ctx: Context,
+  path: string,
+  pending: readonly FileChange[]
+): boolean =>
+  exists(ctx, path) ||
+  pending.some((change) => change.kind !== "delete" && change.path === path)
+
+/**
  * Context for the shared package: the current target when it is a package,
  * else the only non-app workspace. Fails with the candidates otherwise.
  */
@@ -96,6 +109,7 @@ export {
   assertBlockAbsent,
   create,
   exists,
+  existsOrPending,
   fileName,
   relativeImport,
   retargetToPackage,

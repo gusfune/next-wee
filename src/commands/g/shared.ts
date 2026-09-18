@@ -51,11 +51,15 @@ const resolveAttributes = (
     return parseAttributes(raw)
   }
   const key = kebabCase(name)
-  const recorded = existsSync(manifestPath(ctx.target.path, "model", key))
-    ? readManifest(ctx.target.path, "model", key).manifest.args.positional
-    : undefined
-  if (Array.isArray(recorded) && recorded.length > 1) {
-    return parseAttributes(attributeArgs(recorded.map(String)))
+  // `g resource` records the same positionals under its own manifest, so a
+  // resource that was generated in one go also serves as the source.
+  for (const generator of ["model", "resource"]) {
+    const recorded = existsSync(manifestPath(ctx.target.path, generator, key))
+      ? readManifest(ctx.target.path, generator, key).manifest.args.positional
+      : undefined
+    if (Array.isArray(recorded) && recorded.length > 1) {
+      return parseAttributes(attributeArgs(recorded.map(String)))
+    }
   }
   throw new WeeError(
     "attributes-required",
