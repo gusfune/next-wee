@@ -77,6 +77,54 @@ const runBin = async (options: RunBinOptions): Promise<RunBinResult> => {
   return { stdout: result.stdout, stderr: result.stderr }
 }
 
+interface RunScriptOptions {
+  ctx: Context
+  /** Script path. TypeScript is fine: tsx (or bun) compiles it. */
+  script: string
+  args: string[]
+  stdio: "inherit" | "pipe"
+  /** Package export conditions, e.g. `react-server` so `server-only` loads. */
+  conditions?: string[]
+}
+
+interface RunScriptResult {
+  exitCode: number
+  stdout: string
+  stderr: string
+}
+
+/**
+ * Runs a TypeScript script inside the target app. Bun repos run it with
+ * `bun`; every other repo runs `node --import tsx`, which `db:init`
+ * installs. The target's env files are loaded first so the script sees
+ * `DATABASE_URL`.
+ */
+const runScript = async (
+  options: RunScriptOptions
+): Promise<RunScriptResult> => {
+  const { ctx, script, args, stdio, conditions = [] } = options
+  const useBun = ctx.repo.packageManager === "bun"
+  const conditionArgs = conditions.map((name) => `--conditions=${name}`)
+  if (!useBun) {
+    packageDir(ctx.target.path, "tsx")
+  }
+  const result = await x(
+    useBun ? "bun" : "node",
+    useBun
+      ? [...conditionArgs, script, ...args]
+      : [...conditionArgs, "--import", "tsx", script, ...args],
+    {
+      nodeOptions: { cwd: ctx.target.path, stdio },
+      throwOnError: false,
+    }
+  )
+  return {
+    exitCode: result.exitCode ?? 1,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  }
+}
+
 /** Imports a module from the target's dependency tree (ESM or CJS). */
 const importFromTarget = async <T>(
   targetPath: string,
@@ -111,5 +159,12 @@ const installPackages = async (options: InstallOptions): Promise<void> => {
   }
 }
 
-export type { RunBinResult }
-export { importFromTarget, installPackages, packageBin, packageDir, runBin }
+export type { RunBinResult, RunScriptResult }
+export {
+  importFromTarget,
+  installPackages,
+  packageBin,
+  packageDir,
+  runBin,
+  runScript,
+}

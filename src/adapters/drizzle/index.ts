@@ -29,7 +29,7 @@ import { sourceDir } from "../../core/context.js"
 import { WeeError } from "../../core/errors.js"
 import { appEnv, databaseUrl, loadTargetEnv } from "../../lib/env.js"
 import { kebabCase, plural } from "../../lib/inflect.js"
-import { packageBin, runBin } from "../../lib/packages.js"
+import { runBin, runScript } from "../../lib/packages.js"
 import {
   appliedMigrations,
   createDatabase,
@@ -417,21 +417,15 @@ const seed = async (ctx: Context, opts: SeedOptions): Promise<void> => {
     ...(opts.file === undefined ? [] : ["--file", opts.file]),
     ...(opts.replant ? ["--replant"] : []),
   ]
-  const useBun = ctx.repo.packageManager === "bun"
-  const command = useBun ? "bun" : "node"
-  const commandArgs = useBun
-    ? [runner, ...args]
-    : [packageBin(ctx.target.path, "tsx"), runner, ...args]
-  const result = await x(command, commandArgs, {
-    nodeOptions: {
-      cwd: ctx.target.path,
-      stdio: ctx.flags.json ? "pipe" : "inherit",
-    },
-    throwOnError: false,
+  const result = await runScript({
+    ctx,
+    script: runner,
+    args,
+    stdio: ctx.flags.json ? "pipe" : "inherit",
   })
   if (result.exitCode !== 0) {
     throw new WeeError("seed-failed", "Seeding failed", {
-      exitCode: result.exitCode ?? 1,
+      exitCode: result.exitCode,
       data: { stdout: result.stdout, stderr: result.stderr },
     })
   }
