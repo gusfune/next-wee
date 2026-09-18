@@ -4,6 +4,13 @@
   "description": "Rails-grade command tooling for Next.js App Router apps",
   "type": "module",
   "license": "MIT",
+  "author": "Gus Fune",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gusfune/next-wee.git"
+  },
+  "homepage": "https://github.com/gusfune/next-wee#readme",
+  "bugs": "https://github.com/gusfune/next-wee/issues",
   "bin": {
     "wee": "./dist/cli.js",
     "we": "./dist/cli.js"
