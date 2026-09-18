@@ -90,30 +90,45 @@ const isMonorepoRoot = (dir: string): boolean => {
   )
 }
 
-/** Walks up from `cwd`. Returns the monorepo root, or the nearest package.json dir. */
-const findRoot = (cwd: string): string => {
+interface RootScan {
+  monorepoRoot: string | undefined
+  nearestPackage: string | undefined
+}
+
+/** Walks up from `cwd` to the first `.git` dir and records what it passes. */
+const scanRoots = (cwd: string): RootScan => {
   let dir = resolve(cwd)
   let nearestPackage: string | undefined
   while (true) {
     if (isMonorepoRoot(dir)) {
-      return dir
+      return { monorepoRoot: dir, nearestPackage }
     }
     if (nearestPackage === undefined && existsSync(join(dir, "package.json"))) {
       nearestPackage = dir
     }
     const parent = dirname(dir)
     if (existsSync(join(dir, ".git")) || parent === dir) {
-      break
+      return { monorepoRoot: undefined, nearestPackage }
     }
     dir = parent
   }
-  if (nearestPackage === undefined) {
+}
+
+/** The monorepo root above `cwd`, or undefined. `new` uses it to place the app. */
+const findMonorepoRoot = (cwd: string): string | undefined =>
+  scanRoots(cwd).monorepoRoot
+
+/** Walks up from `cwd`. Returns the monorepo root, or the nearest package.json dir. */
+const findRoot = (cwd: string): string => {
+  const { monorepoRoot, nearestPackage } = scanRoots(cwd)
+  const root = monorepoRoot ?? nearestPackage
+  if (root === undefined) {
     throw new WeeError(
       "no-package-json",
       `No package.json found from ${cwd} upwards`
     )
   }
-  return nearestPackage
+  return root
 }
 
 const readTurboTasks = (root: string): string[] => {
@@ -201,4 +216,4 @@ const detectRepo = async (cwd: string): Promise<RepoInfo> => {
 }
 
 export type { PackageJson, RepoInfo, RepoShape, Workspace }
-export { detectRepo, hasDependency, readPackageJson }
+export { detectRepo, findMonorepoRoot, hasDependency, readPackageJson }

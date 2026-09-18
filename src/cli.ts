@@ -34,6 +34,24 @@ const main = defineCommand({
     runner: () => import("./commands/console.js").then((m) => m.runner),
     "mail:preview": () =>
       import("./commands/mail.js").then((m) => m.mailPreview),
+    new: () => import("./commands/new.js").then((m) => m.newApp),
+    dev: () => import("./commands/ops.js").then((m) => m.dev),
+    build: () => import("./commands/ops.js").then((m) => m.build),
+    start: () => import("./commands/ops.js").then((m) => m.start),
+    lint: () => import("./commands/quality.js").then((m) => m.lint),
+    typecheck: () => import("./commands/quality.js").then((m) => m.typecheck),
+    test: () => import("./commands/quality.js").then((m) => m.test),
+    "test:e2e": () => import("./commands/quality.js").then((m) => m.testE2e),
+    ci: () => import("./commands/ci.js").then((m) => m.ci),
+    stats: () => import("./commands/stats.js").then((m) => m.stats),
+    notes: () => import("./commands/notes.js").then((m) => m.notes),
+    "creds:init": () => import("./commands/creds.js").then((m) => m.credsInit),
+    "creds:edit": () => import("./commands/creds.js").then((m) => m.credsEdit),
+    "creds:show": () => import("./commands/creds.js").then((m) => m.credsShow),
+    "creds:diff": () => import("./commands/creds.js").then((m) => m.credsDiff),
+    "creds:fetch": () =>
+      import("./commands/creds.js").then((m) => m.credsFetch),
+    "creds:sync": () => import("./commands/creds.js").then((m) => m.credsSync),
   },
 })
 

@@ -6,8 +6,10 @@
  * provider, so `destroy auth better-auth` reverses it.
  */
 import { join } from "node:path"
+import type { ParsedArgs } from "citty"
 import { getDbAdapter } from "../../adapters/index.js"
 import type { FileChange } from "../../core/changes.js"
+import type { CommandResult } from "../../core/command.js"
 import { defineWeeCommand } from "../../core/command.js"
 import type { Context } from "../../core/context.js"
 import { assertAppRouter, sourceDir } from "../../core/context.js"
@@ -152,22 +154,30 @@ const authGenerator = defineGenerator({
   },
 })
 
+type AuthArgs = ParsedArgs<typeof authGenerator.args>
+
+/** The `g auth` body, shared with `wee new --auth`. */
+const runAuth = async (
+  ctx: Context,
+  args: AuthArgs
+): Promise<CommandResult> => {
+  const result = await runGenerator({ ctx, generator: authGenerator, args })
+  if (parseProvider(args.provider) === "placeholder") {
+    return result
+  }
+  const extra = await installRows({
+    ctx,
+    dependencies: ["better-auth"],
+    devDependencies: [],
+    skipInstall: args["skip-install"],
+  })
+  return { ...result, data: [...rowsOf(result.data), ...rowsOf(extra)] }
+}
+
 const auth = defineWeeCommand({
   meta: { name: "auth", description: authGenerator.description },
   args: authGenerator.args,
-  run: async (ctx, args) => {
-    const result = await runGenerator({ ctx, generator: authGenerator, args })
-    if (parseProvider(args.provider) === "placeholder") {
-      return result
-    }
-    const extra = await installRows({
-      ctx,
-      dependencies: ["better-auth"],
-      devDependencies: [],
-      skipInstall: args["skip-install"],
-    })
-    return { ...result, data: [...rowsOf(result.data), ...rowsOf(extra)] }
-  },
+  run: runAuth,
 })
 
-export { auth, authGenerator, providersPath }
+export { auth, authGenerator, providersPath, runAuth }

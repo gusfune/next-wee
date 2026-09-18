@@ -6,6 +6,7 @@
 
 import { existsSync } from "node:fs"
 import { join } from "node:path"
+import type { ParsedArgs } from "citty"
 import { detectDrizzleConfig } from "../adapters/drizzle/adopt.js"
 import type { AdapterName } from "../adapters/index.js"
 import { dbAdapters, getDbAdapter } from "../adapters/index.js"
@@ -132,36 +133,55 @@ const initOptions = (
   }
 }
 
+interface DbInitArgs {
+  adapter: string
+  provider?: string | undefined
+  "skip-install": boolean
+}
+
+/** The `db:init` body, shared with `wee new --db`. */
+const runDbInit = async (
+  ctx: Context,
+  args: DbInitArgs
+): Promise<CommandResult> => {
+  // citty's ParsedArgs adds `_` and an index signature that rejects
+  // `undefined`; the generator reads only the three fields above.
+  const parsed = { _: [], ...args } as ParsedArgs<typeof dbInitGenerator.args>
+  const result = await runGenerator({
+    ctx,
+    generator: dbInitGenerator,
+    args: parsed,
+  })
+  if (ctx.flags.dryRun || args["skip-install"]) {
+    return result
+  }
+  // The generator already validated the provider; recompute the package
+  // lists from the adapter so they stay in one place.
+  const adapter = parseAdapter(args.adapter)
+  const { dependencies, devDependencies } = await dbAdapters[adapter].init(
+    ctx,
+    initOptions(ctx, adapter, args.provider)
+  )
+  await installPackages({ ctx, dependencies, devDependencies })
+  const rows = Array.isArray(result.data) ? result.data : [result.data]
+  return {
+    ...result,
+    data: [
+      ...rows,
+      ...(dependencies.length > 0
+        ? [{ action: "install", path: dependencies.join(" ") }]
+        : []),
+      ...(devDependencies.length > 0
+        ? [{ action: "install:dev", path: devDependencies.join(" ") }]
+        : []),
+    ],
+  }
+}
+
 const dbInit = defineWeeCommand({
   meta: { name: "db:init", description: dbInitGenerator.description },
   args: dbInitGenerator.args,
-  run: async (ctx, args) => {
-    const result = await runGenerator({ ctx, generator: dbInitGenerator, args })
-    if (ctx.flags.dryRun || args["skip-install"]) {
-      return result
-    }
-    // The generator already validated the provider; recompute the package
-    // lists from the adapter so they stay in one place.
-    const adapter = parseAdapter(args.adapter)
-    const { dependencies, devDependencies } = await dbAdapters[adapter].init(
-      ctx,
-      initOptions(ctx, adapter, args.provider)
-    )
-    await installPackages({ ctx, dependencies, devDependencies })
-    const rows = Array.isArray(result.data) ? result.data : [result.data]
-    return {
-      ...result,
-      data: [
-        ...rows,
-        ...(dependencies.length > 0
-          ? [{ action: "install", path: dependencies.join(" ") }]
-          : []),
-        ...(devDependencies.length > 0
-          ? [{ action: "install:dev", path: devDependencies.join(" ") }]
-          : []),
-      ],
-    }
-  },
+  run: runDbInit,
 })
 
 /** drizzle-kit already printed in human mode; a row is only useful for `--json`. */
@@ -347,4 +367,5 @@ export {
   dbSeedReplant,
   dbStatus,
   dbStudio,
+  runDbInit,
 }
