@@ -1,9 +1,9 @@
 /** `wee about`: runtime, package manager and framework versions for the target app. */
-import { x } from "tinyexec"
 import { defineWeeCommand } from "../core/command.js"
 import type { PackageJson } from "../core/repo.js"
 import { readPackageJson } from "../core/repo.js"
 import { appEnv } from "../lib/env.js"
+import { bunVersion } from "../lib/packages.js"
 
 const TRACKED_PACKAGES = [
   "next",
@@ -19,11 +19,6 @@ const dependencyVersion = (
   name: string
 ): string | undefined => {
   return pkg?.dependencies?.[name] ?? pkg?.devDependencies?.[name]
-}
-
-const bunVersion = async (): Promise<string | undefined> => {
-  const result = await x("bun", ["--version"], { throwOnError: false })
-  return result.exitCode === 0 ? result.stdout.trim() : undefined
 }
 
 const about = defineWeeCommand({

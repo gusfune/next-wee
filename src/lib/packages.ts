@@ -13,7 +13,11 @@ import { x } from "tinyexec"
 import type { Context } from "../core/context.js"
 import { WeeError } from "../core/errors.js"
 
-const packageDir = (targetPath: string, name: string): string => {
+/** Directory of an installed package, walking up for hoisted monorepos. Undefined when absent. */
+const findPackageDir = (
+  targetPath: string,
+  name: string
+): string | undefined => {
   let dir = targetPath
   while (true) {
     const candidate = join(dir, "node_modules", name)
@@ -22,14 +26,25 @@ const packageDir = (targetPath: string, name: string): string => {
     }
     const parent = dirname(dir)
     if (parent === dir) {
-      throw new WeeError(
-        "package-missing",
-        `${name} is not installed in ${targetPath}. Run "wee db:init" or install it.`
-      )
+      return undefined
     }
     dir = parent
   }
 }
+
+const packageDir = (targetPath: string, name: string): string => {
+  const dir = findPackageDir(targetPath, name)
+  if (dir === undefined) {
+    throw new WeeError(
+      "package-missing",
+      `${name} is not installed in ${targetPath}. Run "wee db:init" or install it.`
+    )
+  }
+  return dir
+}
+
+const hasPackage = (targetPath: string, name: string): boolean =>
+  findPackageDir(targetPath, name) !== undefined
 
 /** Path of a package's binary. `bin` names it when it differs from the package, e.g. `email` in `react-email`. */
 const packageBin = (targetPath: string, name: string, bin = name): string => {
@@ -143,6 +158,47 @@ const runScript = async (
   }
 }
 
+interface RunToolOptions {
+  targetPath: string
+  name: string
+  /** Binary name when it differs from the package name. */
+  bin?: string
+  args: string[]
+  /** Working directory; the target by default. */
+  cwd?: string
+  stdio: "inherit" | "pipe"
+}
+
+interface RunToolResult {
+  exitCode: number
+  /** stdout and stderr together; empty with `inherit`. */
+  output: string
+}
+
+/**
+ * Runs a package binary and returns the exit code instead of throwing. For
+ * tools whose failure is a result, not an error: linters, type checkers,
+ * test runners and builds.
+ */
+const runTool = async (options: RunToolOptions): Promise<RunToolResult> => {
+  const { targetPath, name, args, stdio } = options
+  const bin = packageBin(targetPath, name, options.bin)
+  const result = await x("node", [bin, ...args], {
+    nodeOptions: { cwd: options.cwd ?? targetPath, stdio },
+    throwOnError: false,
+  })
+  return {
+    exitCode: result.exitCode ?? 1,
+    output: `${result.stdout}${result.stderr}`,
+  }
+}
+
+/** Installed Bun version, or undefined when `bun` is not on PATH. */
+const bunVersion = async (): Promise<string | undefined> => {
+  const result = await x("bun", ["--version"], { throwOnError: false })
+  return result.exitCode === 0 ? result.stdout.trim() : undefined
+}
+
 /** Imports a module from the target's dependency tree (ESM or CJS). */
 const importFromTarget = async <T>(
   targetPath: string,
@@ -177,8 +233,11 @@ const installPackages = async (options: InstallOptions): Promise<void> => {
   }
 }
 
-export type { RunBinResult, RunScriptResult }
+export type { RunBinResult, RunScriptResult, RunToolResult }
 export {
+  bunVersion,
+  findPackageDir,
+  hasPackage,
   importFromTarget,
   installPackages,
   missingPackages,
@@ -186,4 +245,5 @@ export {
   packageDir,
   runBin,
   runScript,
+  runTool,
 }
