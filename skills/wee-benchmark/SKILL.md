@@ -151,3 +151,7 @@ Baseline: <path>, commit <sha>. Task: <task id>. Model: <model of the arms>.
 
 What each arm did differently, in prose. Name the files that only one arm wrote. Name every check that failed and the first line of its error.
 ```
+
+## Methodology
+
+TODO: write up the methodology behind the metrics above — how the arms are scored, how to read a report and when a result counts.

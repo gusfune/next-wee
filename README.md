@@ -104,6 +104,12 @@ Attribute types: `string text integer decimal boolean datetime uuid json enum[a,
 
 Types for extensions come from the package: `import type { GeneratorDef, TaskContext } from "next-wee"`.
 
+## Benchmarks
+
+Reports that measure `wee` against hand-written work on the same task live in [`benchmarks/`](./benchmarks), run with the `wee-benchmark` skill in [`skills/`](./skills).
+
+TODO: write up the benchmark methodology (arm setup, metrics and how to read a report).
+
 ## Documentation
 
 [AGENTS.md](./AGENTS.md) has the full command reference for coding agents.
