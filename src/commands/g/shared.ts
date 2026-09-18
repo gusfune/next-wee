@@ -16,8 +16,27 @@ const nameArg = {
   },
 } as const
 
+const segmentArg = {
+  segment: {
+    type: "positional",
+    description: "Route segment, e.g. posts/[id]/comments or (marketing)",
+    required: true,
+  },
+} as const
+
 /** citty keeps every positional in `_`, including `name`; the rest are attributes. */
 const attributeArgs = (positional: string[]): string[] => positional.slice(1)
+
+/** Splits extra positionals into `attr:type` items and bare words. */
+const splitPositionals = (
+  positional: string[]
+): { attributes: string[]; words: string[] } => {
+  const rest = attributeArgs(positional)
+  return {
+    attributes: rest.filter((item) => item.includes(":")),
+    words: rest.filter((item) => !item.includes(":")),
+  }
+}
 
 /**
  * Attributes from the command line, or from the `g model` manifest when
@@ -47,4 +66,11 @@ const resolveAttributes = (
 const resolveModel = (ctx: Context, name: string, raw: string[]): ModelSpec =>
   buildModelSpec(name, resolveAttributes(ctx, name, raw))
 
-export { attributeArgs, nameArg, resolveAttributes, resolveModel }
+export {
+  attributeArgs,
+  nameArg,
+  resolveAttributes,
+  resolveModel,
+  segmentArg,
+  splitPositionals,
+}
