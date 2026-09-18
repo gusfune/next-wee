@@ -1,6 +1,6 @@
-# Database flow (Drizzle)
+# Database flow
 
-How `db:init`, `g model`, `g migration` and the `db:*` commands fit together. One document for the whole flow; the code files carry only short headers.
+How `db:init`, `g model`, `g migration` and the `db:*` commands fit together, for Drizzle first and Prisma at the end. One document for the whole flow; the code files carry only short headers.
 
 ## Files in the target app
 
@@ -36,6 +36,18 @@ The down SQL is written by wee to `<tag>.down.sql`, split into statements with `
 
 `db:seed` runs `src/db/seed.ts` with `bun` or `tsx`. Each file in `src/db/seeds/` exports `seed(db)` and an optional `table` that `db:seed:replant` truncates first.
 
-## Known limits
+## Known limits (Drizzle)
 
 SQLite refuses `ADD COLUMN ... NOT NULL` without a default, so an add migration for a required column without `default=` fails at `db:migrate`; give it a default or mark it optional. MySQL auto-commits DDL, so a failed down file can leave the schema half reverted. Only the SQLite driver path runs in CI.
+
+## Prisma
+
+`db:init --adapter=prisma` writes `prisma.config.ts`, `src/db/schema/schema.prisma` (datasource and generator, client output `src/db/generated/`), `src/db/client.ts`, `src/db/seed.ts` and `src/db/seeds/README.md`. The schema is a folder of `.prisma` files, one per model, so `g model` and `destroy` work file by file. Init installs `@prisma/client`, the driver adapter for the provider, the driver, `zod` and `server-only`, plus `prisma` as a dev dependency. It does not adopt an existing Prisma setup.
+
+`g model` writes `src/db/schema/<plural>.prisma`. A `references` attribute adds the relation field to the new model and injects the back relation (`comments Comment[]`) into the referenced model file. When the referenced model is pending in the same run, as with the four auth models, the inject targets the pending file. `applyChanges` then updates the hash of the created file to its final content, so `destroy` sees no drift.
+
+Prisma owns the up SQL. `emitMigration` copies the schema folder twice into a scratch directory under `.app/`, applies the pending schema changes to one copy and runs `prisma migrate diff --script` between them. The reverse diff becomes `down.sql` next to `migration.sql`. `db:generate` diffs the migration history against the schema folder instead. `db:migrate` runs `prisma migrate deploy` and then `prisma generate`.
+
+`db:rollback` does not run. Prisma has no down migrations and `migrate resolve --rolled-back` accepts failed migrations only. The command fails with `rollback-manual` and prints the three steps per migration: run `down.sql` with `prisma db execute`, delete the row from `_prisma_migrations`, remove the folder (or `destroy` the generator that wrote it). `db:status`, `db:prepare` and `db:reset` use the same driver code as Drizzle; `db:push` runs `prisma db push --accept-data-loss` and is local/preview only.
+
+`console` and `runner` expose `db` (the Prisma client) and `services`. The `schema` scope is undefined on Prisma. `--sandbox` rolls back only what runs through `db`; services import the pooled client.

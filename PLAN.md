@@ -37,7 +37,7 @@ Acceptance: `wee about` runs in a single repo and in a Turborepo and reports the
 - [x] Unit and integration tests over the fixtures
 - [x] GitHub Actions: lint, typecheck, test, build on Node 22 and 24
 - [x] `AGENTS.md` section for coding agents
-- [ ] Phase review
+- [x] Phase review
 
 ## Phase 1: Database (Drizzle)
 
@@ -52,7 +52,7 @@ Acceptance: `g model` then `db:migrate` produces a queryable table and a passing
 - [x] `g model` (model, schema index export, validator, service, migration, validator test)
 - [x] `g migration` with Rails-style name parsing
 - [x] `g validator`, `g service`
-- [ ] Phase review
+- [x] Phase review
 
 ## Phase 2: Routes and UI
 
@@ -63,7 +63,7 @@ Acceptance: each generator emits, `destroy` reverses, `typecheck` passes after e
 - [x] `g component --area --client` with test
 - [x] `g form`, `g hook`, `g helper --shared`, `g provider`, `g type`
 - [x] `g env`, `g proxy --matcher`, `g action`
-- [ ] Phase review
+- [x] Phase review
 
 ## Phase 3: Resource
 
@@ -73,19 +73,19 @@ Acceptance: `g resource Post` gives a CRUD flow that passes the generated e2e te
 - [x] Nav link injection
 - [x] `routes [--grep]` with segment kinds and rendering mode
 - [x] `console [--sandbox]`, `runner <file|expr>`
-- [ ] Phase review
+- [x] Phase review
 
 ## Phase 4: Adapters
 
 Acceptance: `db:init --adapter=prisma` passes the phase 1 acceptance. Better Auth sign-in works in the resource app.
 
-- [ ] Prisma `DbAdapter` (rollback fails with the manual procedure)
-- [ ] `g auth --provider=placeholder`
-- [ ] `g auth --provider=better-auth`
-- [ ] `g auth:provider <Name>`
-- [ ] `g job` (Inngest) with registration injection
-- [ ] `g email`, `mail:preview`
-- [ ] Phase review
+- [x] Prisma `DbAdapter` (rollback fails with the manual procedure)
+- [x] `g auth --provider=placeholder`
+- [x] `g auth --provider=better-auth`
+- [x] `g auth:provider <Name>`
+- [x] `g job` (Inngest) with registration injection
+- [x] `g email`, `mail:preview`
+- [x] Phase review
 
 ## Phase 5: Operations
 
@@ -98,7 +98,7 @@ Acceptance: `wee ci` is green locally and in GitHub Actions on the resource app.
 - [ ] `stats`, `notes`
 - [ ] `new <name>` with `--api`, `--minimal`, `--db`, `--auth`
 - [ ] Full `AGENTS.md`
-- [ ] Phase review
+- [x] Phase review
 
 ## Phase 6: Extensibility
 
@@ -107,4 +107,4 @@ Acceptance: a custom generator runs with `--dry-run`, `--json` and `destroy` wit
 - [ ] `g generator <Name>`
 - [ ] `g task <name>`
 - [ ] Custom generator loading from `tools/generators/`
-- [ ] Phase review
+- [x] Phase review
