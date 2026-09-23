@@ -172,3 +172,48 @@ describe("destroy", () => {
     )
   })
 })
+
+describe("applyChanges", () => {
+  it("writes nothing when a later change fails its check", () => {
+    const apply = () =>
+      applyChanges({
+        root: app,
+        dryRun: false,
+        changes: [
+          { kind: "create", path: "src/first.ts", content: "one\n" },
+          { kind: "modify", path: "src/missing.ts", content: "two\n" },
+        ],
+      })
+    expect(apply).toThrow("does not exist")
+    expect(existsSync(join(app, "src/first.ts"))).toBe(false)
+  })
+
+  it("keeps $ patterns in injected content on re-injection", () => {
+    const inject = (content: string) =>
+      applyChanges({
+        root: app,
+        dryRun: false,
+        changes: [
+          { kind: "ensure", path: "src/q.ts", content: "" },
+          { kind: "inject", path: "src/q.ts", marker: "q", content },
+        ],
+      })
+    inject("const a = 1\n")
+    inject("const price = '$&$$'\n")
+    expect(readFileSync(join(app, "src/q.ts"), "utf8")).toContain(
+      "const price = '$&$$'"
+    )
+  })
+
+  it("rejects paths that leave the app", async () => {
+    const { fileChangeSchema } = await import("../src/core/changes.js")
+    for (const path of ["../outside.ts", "src/../../x.ts", "/etc/passwd"]) {
+      const parsed = fileChangeSchema.safeParse({
+        kind: "create",
+        path,
+        content: "",
+      })
+      expect(parsed.success).toBe(false)
+    }
+  })
+})

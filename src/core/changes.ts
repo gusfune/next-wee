@@ -11,20 +11,31 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs"
-import { dirname, join } from "node:path"
+import { dirname, isAbsolute, join } from "node:path"
 import { z } from "zod"
 import { WeeError } from "./errors.js"
 import { injectBlock } from "./inject.js"
 
+/**
+ * A path relative to the target app that stays inside it. Custom generators
+ * and manifests on disk are untrusted input, so `..` and absolute paths fail.
+ */
+const relativePath = z
+  .string()
+  .min(1)
+  .refine((path) => !isAbsolute(path) && !path.split(/[\\/]/).includes(".."), {
+    message: "must be relative to the app and must not contain ..",
+  })
+
 const fileChangeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("create"),
-    path: z.string(),
+    path: relativePath,
     content: z.string(),
   }),
   z.object({
     kind: z.literal("modify"),
-    path: z.string(),
+    path: relativePath,
     content: z.string(),
   }),
   /**
@@ -35,17 +46,17 @@ const fileChangeSchema = z.discriminatedUnion("kind", [
    */
   z.object({
     kind: z.literal("ensure"),
-    path: z.string(),
+    path: relativePath,
     content: z.string(),
   }),
   z.object({
     kind: z.literal("inject"),
-    path: z.string(),
+    path: relativePath,
     marker: z.string(),
     content: z.string(),
     after: z.string().optional(),
   }),
-  z.object({ kind: z.literal("delete"), path: z.string() }),
+  z.object({ kind: z.literal("delete"), path: relativePath }),
 ])
 
 /** One planned change. A schema, because custom generators return these over the wire. */
@@ -53,12 +64,12 @@ type FileChange = z.output<typeof fileChangeSchema>
 
 const appliedChangeSchema = z.object({
   kind: z.enum(["create", "modify", "ensure", "inject", "delete"]),
-  path: z.string(),
+  path: relativePath,
   /** sha256 of the file after the change. Absent for deletes. */
   hash: z.string().optional(),
   /** Marker id for inject changes. */
   marker: z.string().optional(),
-  /** Full previous content for modify changes so `destroy` can restore it. */
+  /** Full previous content for modify and delete changes so `destroy` can restore it. */
   previous: z.string().optional(),
 })
 
@@ -82,23 +93,29 @@ interface ApplyOptions {
   dryRun: boolean
 }
 
-/** Applies changes in order. In dry-run mode it validates and returns without writing. */
+/**
+ * Applies changes in order. Every change is planned in memory first, so a
+ * failing check leaves the disk untouched and a run never ends half written
+ * without a manifest. In dry-run mode it plans and returns without writing.
+ */
 const applyChanges = (options: ApplyOptions): AppliedChange[] => {
   const { root, changes, dryRun } = options
+  // Planned content per path; `undefined` means the file is deleted.
+  const planned = new Map<string, string | undefined>()
+  const current = (path: string): string | undefined =>
+    planned.has(path) ? planned.get(path) : readIfExists(join(root, path))
   const applied: AppliedChange[] = []
   for (const change of changes) {
-    const file = join(root, change.path)
+    const before = current(change.path)
     switch (change.kind) {
       case "create": {
-        if (existsSync(file)) {
+        if (before !== undefined) {
           throw new WeeError(
             "file-exists",
             `${change.path} exists. Use destroy first or pick another name.`
           )
         }
-        if (!dryRun) {
-          writeFile(file, change.content)
-        }
+        planned.set(change.path, change.content)
         applied.push({
           kind: "create",
           path: change.path,
@@ -107,43 +124,37 @@ const applyChanges = (options: ApplyOptions): AppliedChange[] => {
         break
       }
       case "modify": {
-        const previous = readIfExists(file)
-        if (previous === undefined) {
+        if (before === undefined) {
           throw new WeeError(
             "file-missing",
             `${change.path} does not exist and cannot be modified`
           )
         }
-        if (!dryRun) {
-          writeFile(file, change.content)
-        }
+        planned.set(change.path, change.content)
         applied.push({
           kind: "modify",
           path: change.path,
           hash: sha256(change.content),
-          previous,
+          previous: before,
         })
         break
       }
       case "ensure": {
-        if (!dryRun && !existsSync(file)) {
-          writeFile(file, change.content)
+        if (before === undefined) {
+          planned.set(change.path, change.content)
         }
         applied.push({ kind: "ensure", path: change.path })
         break
       }
       case "inject": {
-        const source = readIfExists(file) ?? ""
         const next = injectBlock({
-          source,
+          source: before ?? "",
           path: change.path,
           id: change.marker,
           content: change.content,
           after: change.after,
         })
-        if (!dryRun) {
-          writeFile(file, next)
-        }
+        planned.set(change.path, next)
         // A file created earlier in this run now has the block too. Destroy
         // checks every hash before it reverses anything, so the create entry
         // must carry the final content.
@@ -161,11 +172,23 @@ const applyChanges = (options: ApplyOptions): AppliedChange[] => {
         break
       }
       case "delete": {
-        if (!dryRun && existsSync(file)) {
-          rmSync(file)
-        }
-        applied.push({ kind: "delete", path: change.path })
+        planned.set(change.path, undefined)
+        applied.push({
+          kind: "delete",
+          path: change.path,
+          ...(before === undefined ? {} : { previous: before }),
+        })
         break
+      }
+    }
+  }
+  if (!dryRun) {
+    for (const [path, content] of planned) {
+      const file = join(root, path)
+      if (content === undefined) {
+        rmSync(file, { force: true })
+      } else {
+        writeFile(file, content)
       }
     }
   }

@@ -4,7 +4,7 @@
  * `--force`. Changes are reversed in reverse order.
  */
 import { existsSync, readdirSync, rmdirSync, rmSync } from "node:fs"
-import { dirname, join, relative } from "node:path"
+import { dirname, isAbsolute, join, relative } from "node:path"
 import type { AppliedChange } from "../core/changes.js"
 import { readIfExists, sha256, writeFile } from "../core/changes.js"
 import { defineWeeCommand } from "../core/command.js"
@@ -53,12 +53,17 @@ const checkDrift = (
   return undefined
 }
 
+/** True when `dir` is strictly inside `root`; a sibling like `/app2` is not. */
+const isInside = (root: string, dir: string): boolean => {
+  const rel = relative(root, dir)
+  return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel)
+}
+
 /** Removes now-empty parent directories up to (excluding) the root. */
 const pruneEmptyDirs = (root: string, file: string): void => {
   let dir = dirname(file)
   while (
-    dir !== root &&
-    dir.startsWith(root) &&
+    isInside(root, dir) &&
     existsSync(dir) &&
     readdirSync(dir).length === 0
   ) {
