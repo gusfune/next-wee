@@ -106,9 +106,15 @@ const openDriver = async (options: OpenOptions): Promise<SqlDriver> => {
   }
 }
 
-/** Quotes a table or column name in the provider's dialect. */
-const quoteIdentifier = (provider: DbProvider, name: string): string =>
-  provider === "mysql" ? `\`${name}\`` : `"${name}"`
+/**
+ * Quotes a table, column or database name in the provider's dialect. The
+ * quote character is doubled inside the name, so a database name read from
+ * DATABASE_URL cannot close the quote.
+ */
+const quoteIdentifier = (provider: DbProvider, name: string): string => {
+  const quote = provider === "mysql" ? "`" : '"'
+  return `${quote}${name.replaceAll(quote, quote + quote)}${quote}`
+}
 
 /** True when a table with this name exists in the connected database. */
 const tableExists = async (
@@ -186,7 +192,7 @@ const createDatabase = async (options: AdminOptions): Promise<boolean> => {
       if (rows.length > 0) {
         return false
       }
-      await driver.exec(`CREATE DATABASE "${name}"`)
+      await driver.exec(`CREATE DATABASE ${quoteIdentifier(provider, name)}`)
       return true
     }
     const rows = await driver.query(
@@ -196,7 +202,7 @@ const createDatabase = async (options: AdminOptions): Promise<boolean> => {
     if (rows.length > 0) {
       return false
     }
-    await driver.exec(`CREATE DATABASE \`${name}\``)
+    await driver.exec(`CREATE DATABASE ${quoteIdentifier(provider, name)}`)
     return true
   } finally {
     await driver.close()
@@ -213,9 +219,7 @@ const dropDatabase = async (options: AdminOptions): Promise<void> => {
   const driver = await openDriver({ targetPath, provider, url: adminUrl })
   try {
     await driver.exec(
-      provider === "postgres"
-        ? `DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`
-        : `DROP DATABASE IF EXISTS \`${name}\``
+      `DROP DATABASE IF EXISTS ${quoteIdentifier(provider, name)}${provider === "postgres" ? " WITH (FORCE)" : ""}`
     )
   } finally {
     await driver.close()
