@@ -93,7 +93,10 @@ const blockPattern = (path: string, id: string): RegExp => {
 
 const replaceBlock = (options: InjectOptions): string => {
   const { source, path, id, content } = options
-  return source.replace(blockPattern(path, id), wrapBlock(path, id, content))
+  // A function replacer: a string one would expand `$&` and `$$` in content.
+  return source.replace(blockPattern(path, id), () =>
+    wrapBlock(path, id, content)
+  )
 }
 
 const removeBlock = (source: string, path: string, id: string): string => {
