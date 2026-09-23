@@ -322,6 +322,8 @@ describe("phase 2 routes and ui", () => {
     expect(file).toContain('"/admin/:path*",')
     expect(file).toContain("wee:begin proxy-auth")
     expect(file).toContain("wee:begin proxy-admin-matcher")
+    // Next.js ignores a matcher that is not an `export const`.
+    expect(file).toContain("export const config = {")
   })
 
   it("everything generated typechecks", async () => {
