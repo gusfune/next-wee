@@ -3,6 +3,7 @@
  * a string literal union (`g type PaymentStatus paid pending`), `attr:type`
  * items make an interface, nothing makes an `unknown` alias to fill in.
  */
+import { createOrReplace } from "../../core/changes.js"
 import { defineWeeCommand } from "../../core/command.js"
 import { assertAppRouter } from "../../core/context.js"
 import { WeeError } from "../../core/errors.js"
@@ -10,7 +11,7 @@ import { defineGenerator, runGenerator } from "../../core/generator.js"
 import { parseAttributes } from "../../lib/attributes.js"
 import { kebabCase, pascalCase } from "../../lib/inflect.js"
 import { typeTemplate } from "../../templates/ui.js"
-import { create, srcPath } from "./paths.js"
+import { srcPath } from "./paths.js"
 import { splitPositionals } from "./shared.js"
 
 const typeGenerator = defineGenerator({
@@ -35,7 +36,7 @@ const typeGenerator = defineGenerator({
       )
     }
     return [
-      create(
+      createOrReplace(
         ctx,
         srcPath(ctx, "types", `${kebabCase(name)}.ts`),
         typeTemplate({

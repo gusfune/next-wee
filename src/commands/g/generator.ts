@@ -3,7 +3,9 @@
  * `tools/generators/<name>/`. The CLI discovers it by directory name, so
  * the next `wee g <name>` runs it with `--dry-run`, `--json` and `destroy`.
  */
+
 import { join } from "node:path"
+import { createOrReplace } from "../../core/changes.js"
 import { defineWeeCommand } from "../../core/command.js"
 import { WeeError } from "../../core/errors.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
@@ -14,7 +16,6 @@ import {
   customTemplateFile,
 } from "../../templates/custom.js"
 import { builtInGenerators } from "./index.js"
-import { create } from "./paths.js"
 
 const generatorGenerator = defineGenerator({
   name: "generator",
@@ -37,8 +38,12 @@ const generatorGenerator = defineGenerator({
     }
     const dir = join(GENERATORS_DIR, name)
     return [
-      create(ctx, join(dir, "index.ts"), customGeneratorTemplate(name)),
-      create(
+      createOrReplace(
+        ctx,
+        join(dir, "index.ts"),
+        customGeneratorTemplate(name)
+      ),
+      createOrReplace(
         ctx,
         join(dir, "templates", `${name}.ts.tpl`),
         customTemplateFile(name)

@@ -1,5 +1,7 @@
 /** `wee g handler <segment> [--methods=GET,POST]`: a route handler with typed methods and a test. */
+
 import { join } from "node:path"
+import { createOrReplace } from "../../core/changes.js"
 import { defineWeeCommand } from "../../core/command.js"
 import { assertAppRouter } from "../../core/context.js"
 import { WeeError } from "../../core/errors.js"
@@ -12,7 +14,7 @@ import {
   handlerTestTemplate,
   isHttpMethod,
 } from "../../templates/routes.js"
-import { create, segmentDir } from "./paths.js"
+import { segmentDir } from "./paths.js"
 import { segmentArg } from "./shared.js"
 
 /** Parses `GET,POST` into unique methods, in HTTP_METHODS order. */
@@ -53,12 +55,12 @@ const handlerGenerator = defineGenerator({
     const methods = parseMethods(args.methods)
     const options = { segment, methods }
     return [
-      create(
+      createOrReplace(
         ctx,
         join(segmentDir(ctx, segment), "route.ts"),
         handlerTemplate(options)
       ),
-      create(
+      createOrReplace(
         ctx,
         join(segmentDir(ctx, segment), "route.test.ts"),
         handlerTestTemplate(options)

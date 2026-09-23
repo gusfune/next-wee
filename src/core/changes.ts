@@ -13,6 +13,7 @@ import {
 } from "node:fs"
 import { dirname, isAbsolute, join } from "node:path"
 import { z } from "zod"
+import type { Context } from "./context.js"
 import { WeeError } from "./errors.js"
 import { injectBlock } from "./inject.js"
 
@@ -195,18 +196,17 @@ const applyChanges = (options: ApplyOptions): AppliedChange[] => {
   return applied
 }
 
-interface CreateOrReplaceOptions {
-  root: string
-  force: boolean
-  path: string
+/**
+ * `create` for a new file, `modify` when it exists and `--force` is set;
+ * throws otherwise.
+ */
+const createOrReplace = (
+  ctx: Pick<Context, "target" | "flags">,
+  path: string,
   content: string
-}
-
-/** `create` for a new file, `modify` when it exists and `force` is set; throws otherwise. */
-const createOrReplace = (options: CreateOrReplaceOptions): FileChange => {
-  const { root, force, path, content } = options
-  const exists = existsSync(join(root, path))
-  if (exists && !force) {
+): FileChange => {
+  const exists = existsSync(join(ctx.target.path, path))
+  if (exists && !ctx.flags.force) {
     throw new WeeError(
       "file-exists",
       `${path} exists. Pass --force to regenerate it.`

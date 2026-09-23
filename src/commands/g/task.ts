@@ -3,7 +3,9 @@
  * as `wee <name>` with the app context preloaded. `reports:nightly` writes
  * `reports-nightly.ts` and both spellings run it.
  */
+
 import { join } from "node:path"
+import { createOrReplace } from "../../core/changes.js"
 import { defineWeeCommand } from "../../core/command.js"
 import { WeeError } from "../../core/errors.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
@@ -11,7 +13,6 @@ import { TASKS_DIR } from "../../lib/custom.js"
 import { kebabCase } from "../../lib/inflect.js"
 import { taskTemplate } from "../../templates/custom.js"
 import { builtInCommands } from "../builtins.js"
-import { create } from "./paths.js"
 
 const taskGenerator = defineGenerator({
   name: "task",
@@ -32,7 +33,7 @@ const taskGenerator = defineGenerator({
       )
     }
     return [
-      create(
+      createOrReplace(
         ctx,
         join(TASKS_DIR, `${kebabCase(args.name)}.ts`),
         taskTemplate(args.name)

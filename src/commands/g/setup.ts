@@ -78,10 +78,6 @@ const installRows = async (
   return names.map((name) => ({ action: "install", path: name }))
 }
 
-/** Rows of a generator result as a flat list. */
-const rowsOf = (data: CommandResult["data"]): Record<string, unknown>[] =>
-  Array.isArray(data) ? data : [data]
-
 const skipInstallArg = {
   "skip-install": {
     type: "boolean",
@@ -90,4 +86,4 @@ const skipInstallArg = {
   },
 } as const
 
-export { configPatch, envExampleChanges, installRows, rowsOf, skipInstallArg }
+export { configPatch, envExampleChanges, installRows, skipInstallArg }

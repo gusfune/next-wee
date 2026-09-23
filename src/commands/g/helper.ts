@@ -4,13 +4,15 @@
  * re-exported from its `index.ts`; the manifest lives in that package, so
  * `destroy helper <name>` needs the same `--package`.
  */
+
 import type { FileChange } from "../../core/changes.js"
+import { createOrReplace } from "../../core/changes.js"
 import { defineWeeCommand } from "../../core/command.js"
 import { assertAppRouter } from "../../core/context.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
 import { camelCase, kebabCase } from "../../lib/inflect.js"
 import { helperTemplate, helperTestTemplate } from "../../templates/ui.js"
-import { create, retargetToPackage, srcPath } from "./paths.js"
+import { retargetToPackage, srcPath } from "./paths.js"
 
 const helperGenerator = defineGenerator({
   name: "helper",
@@ -34,8 +36,12 @@ const helperGenerator = defineGenerator({
     if (!args.shared) {
       assertAppRouter(ctx)
       return [
-        create(ctx, srcPath(ctx, "lib", `${file}.ts`), helperTemplate(name)),
-        create(
+        createOrReplace(
+          ctx,
+          srcPath(ctx, "lib", `${file}.ts`),
+          helperTemplate(name)
+        ),
+        createOrReplace(
           ctx,
           srcPath(ctx, "lib", `${file}.test.ts`),
           helperTestTemplate(name)
@@ -43,8 +49,12 @@ const helperGenerator = defineGenerator({
       ]
     }
     const changes: FileChange[] = [
-      create(ctx, srcPath(ctx, `${file}.ts`), helperTemplate(name)),
-      create(ctx, srcPath(ctx, `${file}.test.ts`), helperTestTemplate(name)),
+      createOrReplace(ctx, srcPath(ctx, `${file}.ts`), helperTemplate(name)),
+      createOrReplace(
+        ctx,
+        srcPath(ctx, `${file}.test.ts`),
+        helperTestTemplate(name)
+      ),
       {
         kind: "inject",
         path: srcPath(ctx, "index.ts"),

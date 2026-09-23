@@ -5,16 +5,19 @@
  * client, the providers file and a sign-in page. Manifest name is the
  * provider, so `destroy auth better-auth` reverses it.
  */
+
 import { join } from "node:path"
 import type { ParsedArgs } from "citty"
 import { getDbAdapter } from "../../adapters/index.js"
 import type { FileChange } from "../../core/changes.js"
+import { createOrReplace } from "../../core/changes.js"
 import type { CommandResult } from "../../core/command.js"
 import { defineWeeCommand } from "../../core/command.js"
 import type { Context } from "../../core/context.js"
 import { assertAppRouter, sourceDir } from "../../core/context.js"
 import { WeeError } from "../../core/errors.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
+import { rowsOf } from "../../core/output.js"
 import {
   AUTH_ENV,
   AUTH_MODELS,
@@ -27,12 +30,11 @@ import {
   signInFormTestTemplate,
   signInPageTemplate,
 } from "../../templates/auth.js"
-import { create, relativeImport, srcPath } from "./paths.js"
+import { relativeImport, srcPath } from "./paths.js"
 import {
   configPatch,
   envExampleChanges,
   installRows,
-  rowsOf,
   skipInstallArg,
 } from "./setup.js"
 
@@ -90,7 +92,7 @@ const betterAuthChanges = async (ctx: Context): Promise<FileChange[]> => {
   const src = sourceDir(ctx)
   return [
     ...(await authTableChanges(ctx)),
-    create(
+    createOrReplace(
       ctx,
       index,
       betterAuthTemplate({
@@ -103,10 +105,14 @@ const betterAuthChanges = async (ctx: Context): Promise<FileChange[]> => {
         ),
       })
     ),
-    create(ctx, providers, providersTemplate()),
-    create(ctx, client, authClientTemplate()),
-    create(ctx, route, authRouteTemplate(relativeImport(route, index))),
-    create(
+    createOrReplace(ctx, providers, providersTemplate()),
+    createOrReplace(ctx, client, authClientTemplate()),
+    createOrReplace(
+      ctx,
+      route,
+      authRouteTemplate(relativeImport(route, index))
+    ),
+    createOrReplace(
       ctx,
       page,
       signInPageTemplate({
@@ -114,7 +120,7 @@ const betterAuthChanges = async (ctx: Context): Promise<FileChange[]> => {
         providersImport: relativeImport(page, providers),
       })
     ),
-    create(
+    createOrReplace(
       ctx,
       form,
       signInFormTemplate({
@@ -122,7 +128,7 @@ const betterAuthChanges = async (ctx: Context): Promise<FileChange[]> => {
         providersImport: relativeImport(form, providers),
       })
     ),
-    create(
+    createOrReplace(
       ctx,
       srcPath(ctx, "components", "auth", "sign-in-form.test.tsx"),
       signInFormTestTemplate()
@@ -148,7 +154,7 @@ const authGenerator = defineGenerator({
     const provider = parseProvider(args.provider)
     const changes =
       provider === "placeholder"
-        ? [create(ctx, authIndexPath(ctx), placeholderTemplate())]
+        ? [createOrReplace(ctx, authIndexPath(ctx), placeholderTemplate())]
         : await betterAuthChanges(ctx)
     return [...changes, configPatch(ctx, { auth: { provider } })]
   },

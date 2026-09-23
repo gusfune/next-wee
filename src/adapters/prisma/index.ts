@@ -20,7 +20,11 @@ import type {
   PrepareResult,
 } from "../../core/adapters.js"
 import type { FileChange } from "../../core/changes.js"
-import { applyChanges, readIfExists } from "../../core/changes.js"
+import {
+  applyChanges,
+  createOrReplace,
+  readIfExists,
+} from "../../core/changes.js"
 import type { Context } from "../../core/context.js"
 import { sourceDir } from "../../core/context.js"
 import { WeeError } from "../../core/errors.js"
@@ -34,7 +38,6 @@ import {
   assertResetAllowed,
   baseInit,
   createIfMissing,
-  createOrReplace,
   databaseName,
   dbDirs,
   emitValidator,

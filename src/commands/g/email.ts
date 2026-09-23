@@ -3,9 +3,11 @@
  * a render test. The first run also writes `lib/mail.ts` (Resend) and the
  * env keys. `wee mail:preview` serves the folder.
  */
+import { createOrReplace } from "../../core/changes.js"
 import { defineWeeCommand } from "../../core/command.js"
 import { assertAppRouter } from "../../core/context.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
+import { rowsOf } from "../../core/output.js"
 import {
   emailNames,
   emailTemplate,
@@ -13,13 +15,8 @@ import {
   MAIL_ENV,
   mailLibTemplate,
 } from "../../templates/mail.js"
-import { create, srcPath } from "./paths.js"
-import {
-  envExampleChanges,
-  installRows,
-  rowsOf,
-  skipInstallArg,
-} from "./setup.js"
+import { srcPath } from "./paths.js"
+import { envExampleChanges, installRows, skipInstallArg } from "./setup.js"
 
 const EMAILS_DIR = "emails"
 
@@ -44,12 +41,12 @@ const emailGenerator = defineGenerator({
         path: srcPath(ctx, "lib", "mail.ts"),
         content: mailLibTemplate(),
       },
-      create(
+      createOrReplace(
         ctx,
         srcPath(ctx, EMAILS_DIR, `${names.file}.tsx`),
         emailTemplate(names)
       ),
-      create(
+      createOrReplace(
         ctx,
         srcPath(ctx, EMAILS_DIR, `${names.file}.test.tsx`),
         emailTestTemplate(names)

@@ -1,11 +1,13 @@
 /** `wee g layout <segment>`: a layout for a segment or route group. */
+
 import { join } from "node:path"
+import { createOrReplace } from "../../core/changes.js"
 import { defineWeeCommand } from "../../core/command.js"
 import { assertAppRouter } from "../../core/context.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
 import { parseSegment } from "../../lib/segment.js"
 import { layoutTemplate } from "../../templates/routes.js"
-import { create, segmentDir } from "./paths.js"
+import { segmentDir } from "./paths.js"
 import { segmentArg } from "./shared.js"
 
 const layoutGenerator = defineGenerator({
@@ -17,7 +19,7 @@ const layoutGenerator = defineGenerator({
     assertAppRouter(ctx)
     const segment = parseSegment(args.segment)
     return [
-      create(
+      createOrReplace(
         ctx,
         join(segmentDir(ctx, segment), "layout.tsx"),
         layoutTemplate(segment)

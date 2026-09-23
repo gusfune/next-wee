@@ -1,6 +1,8 @@
 /** `wee g page <segment> [--layout] [--skip-loading] [--skip-error]`: page with its boundaries. */
+
 import { join } from "node:path"
 import type { FileChange } from "../../core/changes.js"
+import { createOrReplace } from "../../core/changes.js"
 import { defineWeeCommand } from "../../core/command.js"
 import { assertAppRouter } from "../../core/context.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
@@ -11,7 +13,7 @@ import {
   loadingTemplate,
   pageTemplate,
 } from "../../templates/routes.js"
-import { create, segmentDir } from "./paths.js"
+import { segmentDir } from "./paths.js"
 import { segmentArg } from "./shared.js"
 
 const pageGenerator = defineGenerator({
@@ -41,19 +43,21 @@ const pageGenerator = defineGenerator({
     const segment = parseSegment(args.segment)
     const dir = segmentDir(ctx, segment)
     const changes: FileChange[] = [
-      create(ctx, join(dir, "page.tsx"), pageTemplate(segment)),
+      createOrReplace(ctx, join(dir, "page.tsx"), pageTemplate(segment)),
     ]
     if (!args["skip-loading"]) {
       changes.push(
-        create(ctx, join(dir, "loading.tsx"), loadingTemplate(segment))
+        createOrReplace(ctx, join(dir, "loading.tsx"), loadingTemplate(segment))
       )
     }
     if (!args["skip-error"]) {
-      changes.push(create(ctx, join(dir, "error.tsx"), errorTemplate(segment)))
+      changes.push(
+        createOrReplace(ctx, join(dir, "error.tsx"), errorTemplate(segment))
+      )
     }
     if (args.layout) {
       changes.push(
-        create(ctx, join(dir, "layout.tsx"), layoutTemplate(segment))
+        createOrReplace(ctx, join(dir, "layout.tsx"), layoutTemplate(segment))
       )
     }
     return changes

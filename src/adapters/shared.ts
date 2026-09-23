@@ -16,10 +16,7 @@ import { join } from "node:path"
 import { x } from "tinyexec"
 import type { DbProvider, ModelSpec, SeedOptions } from "../core/adapters.js"
 import type { FileChange } from "../core/changes.js"
-import {
-  createOrReplace as createOrReplaceChange,
-  readIfExists,
-} from "../core/changes.js"
+import { createOrReplace, readIfExists } from "../core/changes.js"
 import type { AppConfig } from "../core/config.js"
 import { CONFIG_DIR, configChange } from "../core/config.js"
 import type { Context } from "../core/context.js"
@@ -71,19 +68,6 @@ const dbDirs = (ctx: Context): DbDirs => {
 /** Indentation of an existing JSON file, so a rewrite keeps its style. */
 const detectIndent = (text: string): string =>
   text.match(/^(\s+)"/m)?.[1] ?? "  "
-
-/** `create` for a new file, `modify` with `--force` when it exists. */
-const createOrReplace = (
-  ctx: Context,
-  path: string,
-  content: string
-): FileChange =>
-  createOrReplaceChange({
-    root: ctx.target.path,
-    force: ctx.flags.force,
-    path,
-    content,
-  })
 
 /** Files that already exist are kept as they are, so adopting a setup is safe. */
 const createIfMissing = (
@@ -313,7 +297,6 @@ export {
   assertResetAllowed,
   baseInit,
   createIfMissing,
-  createOrReplace,
   databaseName,
   dbDirs,
   emitValidator,

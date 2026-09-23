@@ -4,8 +4,10 @@
  * at `app/sitemap.ts` with one entry block per segment; the image lives in
  * the segment.
  */
+
 import { join } from "node:path"
 import type { FileChange } from "../../core/changes.js"
+import { createOrReplace } from "../../core/changes.js"
 import { defineWeeCommand } from "../../core/command.js"
 import { assertAppRouter } from "../../core/context.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
@@ -16,7 +18,7 @@ import {
   sitemapEntry,
   sitemapTemplate,
 } from "../../templates/routes.js"
-import { create, segmentDir, srcPath } from "./paths.js"
+import { segmentDir, srcPath } from "./paths.js"
 import { segmentArg } from "./shared.js"
 
 const metadataGenerator = defineGenerator({
@@ -57,7 +59,7 @@ const metadataGenerator = defineGenerator({
     }
     if (args.og || both) {
       changes.push(
-        create(
+        createOrReplace(
           ctx,
           join(segmentDir(ctx, segment), "opengraph-image.tsx"),
           ogImageTemplate(segment)

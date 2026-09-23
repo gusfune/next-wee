@@ -3,6 +3,7 @@
  * stdout. Otherwise rows render as an aligned table and errors as one line.
  */
 import { styleText } from "node:util"
+import type { CommandResult } from "./command.js"
 import { isWeeError } from "./errors.js"
 
 type Row = Record<string, unknown>
@@ -85,5 +86,9 @@ const reportError = (error: unknown, json: boolean): number => {
   return exitCode
 }
 
+/** Rows of a generator result as a flat list. */
+const rowsOf = (data: CommandResult["data"]): Record<string, unknown>[] =>
+  Array.isArray(data) ? data : [data]
+
 export type { Row }
-export { emit, reportError }
+export { emit, reportError, rowsOf }
