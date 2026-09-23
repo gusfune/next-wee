@@ -263,7 +263,9 @@ const TEXTCONV_KEY = "diff.wee_credentials.textconv"
 
 const enroll = async (ctx: Context): Promise<CommandResult> => {
   const added = appendLineOnce(ctx, ".gitattributes", GIT_ATTRIBUTE)
-  const textconv = `${execPrefix(ctx)} wee creds:diff`
+  // git runs textconv at the repo root, where a monorepo needs the app named.
+  const app = ctx.target.name === "root" ? "" : ` --app ${ctx.target.name}`
+  const textconv = `${execPrefix(ctx)} wee creds:diff${app}`
   if (!ctx.flags.dryRun) {
     const result = await x("git", ["config", TEXTCONV_KEY, textconv], {
       nodeOptions: { cwd: ctx.target.path },
