@@ -78,7 +78,11 @@ const baseColumn = (
         case "integer":
           return { code: `integer(${col})`, imports: ["integer"] }
         case "decimal":
-          return { code: `numeric(${col})`, imports: ["numeric"] }
+          // Number mode: the validator and the form produce numbers, not strings.
+          return {
+            code: `numeric(${col}, { mode: "number" })`,
+            imports: ["numeric"],
+          }
         case "boolean":
           return { code: `boolean(${col})`, imports: ["boolean"] }
         case "datetime":
@@ -143,7 +147,7 @@ const baseColumn = (
           return { code: `int(${col})`, imports: ["int"] }
         case "decimal":
           return {
-            code: `decimal(${col}, { precision: 12, scale: 2 })`,
+            code: `decimal(${col}, { precision: 12, scale: 2, mode: "number" })`,
             imports: ["decimal"],
           }
         case "boolean":
@@ -244,10 +248,40 @@ const systemColumns = (
   }
 }
 
+const quoteSqlString = (value: string): string =>
+  `'${value.replace(/'/g, "''")}'`
+
 const sqlLiteral = (attribute: Attribute, value: string): string =>
   isNumeric(attribute) || attribute.type === "boolean"
     ? value
-    : `'${value.replace(/'/g, "''")}'`
+    : quoteSqlString(value)
+
+/**
+ * SQL default for a restored column, or undefined when there is none.
+ * `now` and `random` are builder helpers, not literals (see defaultCode).
+ * SQLite refuses a non-constant default in ADD COLUMN, so it gets none.
+ */
+const sqlDefault = (
+  provider: DbProvider,
+  attribute: Attribute
+): string | undefined => {
+  const value = attribute.defaultValue
+  if (value === undefined) {
+    return undefined
+  }
+  if (attribute.type === "datetime" && value === "now") {
+    return provider === "sqlite" ? undefined : "CURRENT_TIMESTAMP"
+  }
+  if (attribute.type === "uuid" && value === "random") {
+    const fn: Record<DbProvider, string | undefined> = {
+      postgres: "gen_random_uuid()",
+      mysql: "(uuid())",
+      sqlite: undefined,
+    }
+    return fn[provider]
+  }
+  return sqlLiteral(attribute, value)
+}
 
 /** Raw SQL type used when a down migration re-adds a removed column. */
 const sqlType = (
@@ -255,9 +289,7 @@ const sqlType = (
   table: string,
   attribute: Attribute
 ): string => {
-  const values = (attribute.values ?? [])
-    .map((value) => `'${value}'`)
-    .join(", ")
+  const values = (attribute.values ?? []).map(quoteSqlString).join(", ")
   switch (provider) {
     case "postgres": {
       const map: Record<Attribute["type"], string> = {
@@ -317,8 +349,9 @@ const columnDefinitionSql = (
     quoteIdentifier(provider, attribute.column),
     sqlType(provider, table, attribute),
   ]
-  if (attribute.defaultValue !== undefined) {
-    parts.push(`DEFAULT ${sqlLiteral(attribute, attribute.defaultValue)}`)
+  const fallback = sqlDefault(provider, attribute)
+  if (fallback !== undefined) {
+    parts.push(`DEFAULT ${fallback}`)
   }
   if (!attribute.optional) {
     parts.push("NOT NULL")
