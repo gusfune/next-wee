@@ -1,7 +1,8 @@
 /**
  * `wee g metadata <segment> [--sitemap] [--og]`: sitemap and Open Graph
  * image. With no flag both are written. The sitemap is app-wide and lives
- * at `app/sitemap.ts`; the image lives in the segment.
+ * at `app/sitemap.ts` with one entry block per segment; the image lives in
+ * the segment.
  */
 import { join } from "node:path"
 import type { FileChange } from "../../core/changes.js"
@@ -9,7 +10,12 @@ import { defineWeeCommand } from "../../core/command.js"
 import { assertAppRouter } from "../../core/context.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
 import { parseSegment } from "../../lib/segment.js"
-import { ogImageTemplate, sitemapTemplate } from "../../templates/routes.js"
+import {
+  ogImageTemplate,
+  SITEMAP_ANCHOR,
+  sitemapEntry,
+  sitemapTemplate,
+} from "../../templates/routes.js"
 import { create, segmentDir, srcPath } from "./paths.js"
 import { segmentArg } from "./shared.js"
 
@@ -36,8 +42,17 @@ const metadataGenerator = defineGenerator({
     const both = !args.sitemap && !args.og
     const changes: FileChange[] = []
     if (args.sitemap || both) {
+      // One shared file; each segment adds its own entry block.
+      const path = srcPath(ctx, "app", "sitemap.ts")
       changes.push(
-        create(ctx, srcPath(ctx, "app", "sitemap.ts"), sitemapTemplate(segment))
+        { kind: "ensure", path, content: sitemapTemplate() },
+        {
+          kind: "inject",
+          path,
+          marker: `sitemap-${segment.key}`,
+          content: sitemapEntry(segment),
+          after: SITEMAP_ANCHOR,
+        }
       )
     }
     if (args.og || both) {

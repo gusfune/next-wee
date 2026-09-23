@@ -281,18 +281,25 @@ const handlerTestTemplate = (options: HandlerOptions): string => {
   return lines.join("\n")
 }
 
-const sitemapTemplate = (segment: Segment): string =>
-  `/** Sitemap for ${segment.staticUrl}. Add one entry per public URL. */
+/** Anchor the sitemap entries are injected after. */
+const SITEMAP_ANCHOR =
+  "const sitemap = async (): Promise<MetadataRoute.Sitemap> => ["
+
+/** App-wide sitemap. Created once; \`wee g metadata\` adds one entry per segment. */
+const sitemapTemplate = (): string =>
+  `/** Sitemap. Add one entry per public URL. */
 import type { MetadataRoute } from "next"
 
 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
 
-const sitemap = async (): Promise<MetadataRoute.Sitemap> => [
-  { url: \`\${baseUrl}${segment.staticUrl === "/" ? "" : segment.staticUrl}\`, lastModified: new Date() },
+${SITEMAP_ANCHOR}
 ]
 
 export default sitemap
 `
+
+const sitemapEntry = (segment: Segment): string =>
+  `  { url: \`\${baseUrl}${segment.staticUrl === "/" ? "" : segment.staticUrl}\`, lastModified: new Date() },`
 
 const ogImageTemplate = (segment: Segment): string => {
   const hasParams = segment.params.length > 0
@@ -357,5 +364,7 @@ export {
   loadingTemplate,
   ogImageTemplate,
   pageTemplate,
+  SITEMAP_ANCHOR,
+  sitemapEntry,
   sitemapTemplate,
 }

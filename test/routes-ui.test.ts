@@ -235,6 +235,13 @@ describe("phase 2 routes and ui", () => {
     await ok(metadata, ["posts"])
     expect(read("src/app/sitemap.ts")).toContain("MetadataRoute.Sitemap")
     expect(read("src/app/posts/opengraph-image.tsx")).toContain("ImageResponse")
+    // A second segment adds its entry to the shared sitemap.
+    await ok(metadata, ["about", "--sitemap"])
+    const sitemap = read("src/app/sitemap.ts")
+    expect(sitemap).toContain("${baseUrl}/posts")
+    expect(sitemap).toContain("${baseUrl}/about")
+    await ok(destroy, ["metadata", "about"])
+    expect(read("src/app/sitemap.ts")).not.toContain("/about")
   })
 
   it("g component writes a client component in its area with a test", async () => {
