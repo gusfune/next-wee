@@ -1,7 +1,7 @@
 {
   "name": "next-wee",
   "version": "0.2.0",
-  "description": "Rails-grade command tooling for Next.js App Router apps",
+  "description": "Generators, migrations and one task runner for Next.js App Router apps",
   "type": "module",
   "license": "MIT",
   "author": "Gus Fune",
