@@ -303,7 +303,7 @@ const runSeed = async (
 const dbSeed = defineWeeCommand({
   meta: {
     name: "db:seed",
-    description: "Run src/db/seed.ts (all seeds or --file)",
+    description: "Run the seeds in src/db/seeds (all, or one with --file)",
   },
   args: seedArgs,
   run: (ctx, args) => runSeed(ctx, args.file, false),
@@ -348,7 +348,10 @@ const dbReset = defineWeeCommand({
 })
 
 const dbStudio = defineWeeCommand({
-  meta: { name: "db:studio", description: "Open Drizzle Studio" },
+  meta: {
+    name: "db:studio",
+    description: "Open Drizzle Studio or Prisma Studio",
+  },
   run: async (ctx) => {
     await getDbAdapter(ctx).studio(ctx)
     return undefined

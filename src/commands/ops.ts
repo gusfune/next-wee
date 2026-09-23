@@ -1,7 +1,6 @@
 /**
  * `wee dev [--port]`, `wee build` and `wee start [--port]`. `dev` prepares
- * the database and starts the jobs dev server before `next dev`; `build`
- * typechecks first. Turborepo tasks delegate to `turbo run`.
+ * the database before `next dev`; `build` typechecks first. Turborepo tasks delegate to `turbo run`.
  */
 import { defineWeeCommand } from "../core/command.js"
 import { assertAppRouter } from "../core/context.js"
@@ -15,7 +14,7 @@ const portArg = {
 const devCommand = defineWeeCommand({
   meta: {
     name: "dev",
-    description: "db:prepare, jobs dev server, then next dev",
+    description: "db:prepare, then next dev",
   },
   args: portArg,
   run: async (ctx, args) => {
