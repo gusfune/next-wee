@@ -8,6 +8,7 @@ import { join } from "node:path"
 import { z } from "zod"
 import type { FileChange } from "./changes.js"
 import { WeeError } from "./errors.js"
+import { readJsonFile } from "./json.js"
 
 const dbConfigSchema = z.object({
   adapter: z.enum(["drizzle", "prisma"]),
@@ -34,16 +35,7 @@ const readConfigFile = (file: string): AppConfigInput => {
   if (!existsSync(file)) {
     return {}
   }
-  const result = appConfigSchema.safeParse(
-    JSON.parse(readFileSync(file, "utf8"))
-  )
-  if (!result.success) {
-    throw new WeeError(
-      "invalid-config",
-      `Invalid config ${file}: ${z.prettifyError(result.error)}`
-    )
-  }
-  return result.data
+  return readJsonFile(file, appConfigSchema, "invalid-config")
 }
 
 /** Detects `srcDir`, the router and the pages dir from the target's file tree. */
@@ -112,7 +104,7 @@ const configChange = (options: ConfigChangeOptions): FileChange => {
   const path = join(CONFIG_DIR, CONFIG_FILE)
   const file = join(targetPath, path)
   const existing = existsSync(file)
-    ? (JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>)
+    ? readJsonFile(file, z.record(z.string(), z.unknown()), "invalid-config")
     : undefined
   const config = {
     ...(existing ?? { router: current.router, srcDir: current.srcDir }),

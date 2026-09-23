@@ -103,6 +103,16 @@ describe("init", () => {
   })
 })
 
+describe("hand-edited JSON", () => {
+  it("fails with the file's error code when .app/config.json is malformed", async () => {
+    await run(init, [])
+    writeFileSync(join(app, ".app/config.json"), "{ broken")
+    const { exit, err } = await run(destroy, ["init", "app", "--json"])
+    expect(exit).toBe(1)
+    expect(JSON.parse(err).error.code).toBe("invalid-config")
+  })
+})
+
 describe("destroy", () => {
   it("reverses init and prunes empty directories", async () => {
     await run(init, [])

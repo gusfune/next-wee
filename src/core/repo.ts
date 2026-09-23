@@ -12,7 +12,9 @@ import type { PackageManagerName } from "nypm"
 import { detectPackageManager } from "nypm"
 import { glob } from "tinyglobby"
 import { parse as parseYaml } from "yaml"
+import { z } from "zod"
 import { WeeError } from "./errors.js"
+import { readJsonFile } from "./json.js"
 
 type RepoShape = "single" | "turborepo" | "workspaces"
 
@@ -131,15 +133,18 @@ const findRoot = (cwd: string): string => {
   return root
 }
 
+/** `tasks` in Turborepo 2, `pipeline` in 1. */
+const turboSchema = z.object({
+  tasks: z.record(z.string(), z.unknown()).optional(),
+  pipeline: z.record(z.string(), z.unknown()).optional(),
+})
+
 const readTurboTasks = (root: string): string[] => {
   const file = join(root, "turbo.json")
   if (!existsSync(file)) {
     return []
   }
-  const parsed = JSON.parse(readFileSync(file, "utf8")) as {
-    tasks?: Record<string, unknown>
-    pipeline?: Record<string, unknown>
-  }
+  const parsed = readJsonFile(file, turboSchema, "invalid-turbo-json")
   return Object.keys(parsed.tasks ?? parsed.pipeline ?? {})
 }
 

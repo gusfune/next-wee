@@ -17,6 +17,7 @@ import type { AppliedChange } from "./changes.js"
 import { appliedChangeSchema } from "./changes.js"
 import { CONFIG_DIR } from "./config.js"
 import { WeeError } from "./errors.js"
+import { readJsonFile } from "./json.js"
 
 const MANIFEST_DIR = join(CONFIG_DIR, "manifests")
 
@@ -140,16 +141,10 @@ const readManifest = (
       `No manifest for ${generator} ${name} at ${file}`
     )
   }
-  const result = manifestSchema.safeParse(
-    JSON.parse(readFileSync(file, "utf8"))
-  )
-  if (!result.success) {
-    throw new WeeError(
-      "manifest-invalid",
-      `Invalid manifest ${file}: ${z.prettifyError(result.error)}`
-    )
+  return {
+    path: file,
+    manifest: readJsonFile(file, manifestSchema, "manifest-invalid"),
   }
-  return { path: file, manifest: result.data }
 }
 
 const deleteManifest = (
@@ -180,13 +175,11 @@ const isPathSharedWithOtherManifest = (
     .filter((id) => id !== excludeId)
     .some((id) => {
       const file = join(targetPath, MANIFEST_DIR, `${id}.json`)
-      const parsed = manifestSchema.safeParse(
-        JSON.parse(readFileSync(file, "utf8"))
-      )
-      return (
-        parsed.success &&
-        parsed.data.changes.some((change) => change.path === path)
-      )
+      return readJsonFile(
+        file,
+        manifestSchema,
+        "manifest-invalid"
+      ).changes.some((change) => change.path === path)
     })
 }
 
