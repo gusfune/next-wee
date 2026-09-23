@@ -326,6 +326,13 @@ describe("phase 4 prisma on sqlite", () => {
     expect(await tables()).toEqual(["_prisma_migrations", "comments", "posts"])
   }, 60_000)
 
+  it("g migration RemoveXFromY drops the back relation with the column", async () => {
+    await ok(migration, ["RemovePostFromComments", "post:references"])
+    expect(read("src/db/schema/posts.prisma")).not.toContain("Comment[]")
+    await ok(destroy, ["migration", "RemovePostFromComments"])
+    expect(read("src/db/schema/posts.prisma")).toContain("comments Comment[]")
+  }, 60_000)
+
   it("g auth --provider=better-auth writes the four models in one migration and signs in", async () => {
     await ok(auth, ["--provider=better-auth", "--skip-install"])
     const users = read("src/db/schema/users.prisma")
