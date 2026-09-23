@@ -1,6 +1,6 @@
 {
   "name": "next-wee",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Generators, migrations and one task runner for Next.js App Router apps",
   "type": "module",
   "license": "MIT",
