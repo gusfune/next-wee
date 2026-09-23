@@ -354,7 +354,6 @@ const ogImageTemplate = (segment: Segment): string => {
 
 export type { HttpMethod }
 export {
-  BODY_METHODS,
   errorTemplate,
   HTTP_METHODS,
   handlerTemplate,

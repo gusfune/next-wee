@@ -75,4 +75,4 @@ const metadata = defineWeeCommand({
   run: (ctx, args) => runGenerator({ ctx, generator: metadataGenerator, args }),
 })
 
-export { metadata, metadataGenerator }
+export { metadata }

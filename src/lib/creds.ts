@@ -140,13 +140,11 @@ const parseCredentials = (text: string): Record<string, string> => {
 
 export type { CredentialPaths }
 export {
-  CREDENTIALS_DIR,
   credentialFile,
   credentialHeader,
   credentialPaths,
   decryptText,
   encryptText,
-  IDENTITY_ENV,
   IDENTITY_FILE,
   parseCredentials,
   RECIPIENTS_FILE,

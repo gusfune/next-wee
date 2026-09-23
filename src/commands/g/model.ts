@@ -69,4 +69,4 @@ const model = defineWeeCommand({
   run: (ctx, args) => runGenerator({ ctx, generator: modelGenerator, args }),
 })
 
-export { model, modelChanges, modelGenerator }
+export { model, modelChanges }

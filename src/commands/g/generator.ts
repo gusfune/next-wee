@@ -55,4 +55,4 @@ const generator = defineWeeCommand({
     runGenerator({ ctx, generator: generatorGenerator, args }),
 })
 
-export { generator, generatorGenerator }
+export { generator }

@@ -36,4 +36,4 @@ const service = defineWeeCommand({
   run: (ctx, args) => runGenerator({ ctx, generator: serviceGenerator, args }),
 })
 
-export { service, serviceGenerator }
+export { service }

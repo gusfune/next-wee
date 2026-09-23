@@ -76,4 +76,4 @@ const job = defineWeeCommand({
   },
 })
 
-export { job, jobGenerator }
+export { job }

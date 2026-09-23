@@ -86,4 +86,4 @@ const reportError = (error: unknown, json: boolean): number => {
 }
 
 export type { Row }
-export { emit, renderTable, reportError }
+export { emit, reportError }

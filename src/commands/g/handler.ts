@@ -74,4 +74,4 @@ const handler = defineWeeCommand({
   run: (ctx, args) => runGenerator({ ctx, generator: handlerGenerator, args }),
 })
 
-export { handler, handlerGenerator, parseMethods }
+export { handler }

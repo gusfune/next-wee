@@ -41,4 +41,4 @@ const hook = defineWeeCommand({
   run: (ctx, args) => runGenerator({ ctx, generator: hookGenerator, args }),
 })
 
-export { hook, hookGenerator }
+export { hook }

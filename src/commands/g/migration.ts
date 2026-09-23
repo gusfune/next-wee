@@ -50,4 +50,4 @@ const migration = defineWeeCommand({
     runGenerator({ ctx, generator: migrationGenerator, args }),
 })
 
-export { migration, migrationGenerator }
+export { migration }

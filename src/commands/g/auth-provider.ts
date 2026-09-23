@@ -79,4 +79,4 @@ const authProvider = defineWeeCommand({
     runGenerator({ ctx, generator: authProviderGenerator, args }),
 })
 
-export { authProvider, authProviderGenerator }
+export { authProvider }

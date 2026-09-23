@@ -55,4 +55,4 @@ const type = defineWeeCommand({
   run: (ctx, args) => runGenerator({ ctx, generator: typeGenerator, args }),
 })
 
-export { type, typeGenerator }
+export { type }

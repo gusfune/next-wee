@@ -212,4 +212,4 @@ const action = defineWeeCommand({
   run: (ctx, args) => runGenerator({ ctx, generator: actionGenerator, args }),
 })
 
-export { action, actionChanges, actionGenerator, actionsPath }
+export { action, actionChanges, actionsPath }

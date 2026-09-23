@@ -116,4 +116,4 @@ const env = defineWeeCommand({
   run: (ctx, args) => runGenerator({ ctx, generator: envGenerator, args }),
 })
 
-export { env, envGenerator, parseEnvVars }
+export { env }

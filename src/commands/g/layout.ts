@@ -33,4 +33,4 @@ const layout = defineWeeCommand({
   run: (ctx, args) => runGenerator({ ctx, generator: layoutGenerator, args }),
 })
 
-export { layout, layoutGenerator }
+export { layout }

@@ -63,4 +63,4 @@ const getDbAdapter = (ctx: Context): DbAdapter => {
 }
 
 export type { AdapterName }
-export { assertDbReady, dbAdapters, getDbAdapter }
+export { dbAdapters, getDbAdapter }

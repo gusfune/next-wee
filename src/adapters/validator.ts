@@ -188,6 +188,4 @@ export {
   sampleValue,
   validatorTemplate,
   validatorTestTemplate,
-  wrongValue,
-  zodCode,
 }

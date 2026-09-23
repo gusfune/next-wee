@@ -181,4 +181,4 @@ const auth = defineWeeCommand({
   run: runAuth,
 })
 
-export { auth, authGenerator, providersPath, runAuth }
+export { auth, providersPath, runAuth }

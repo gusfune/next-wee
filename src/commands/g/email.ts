@@ -75,4 +75,4 @@ const email = defineWeeCommand({
   },
 })
 
-export { EMAILS_DIR, email, emailGenerator }
+export { EMAILS_DIR, email }

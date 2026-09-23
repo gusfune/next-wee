@@ -209,15 +209,4 @@ const start = (options: ServeOptions): Promise<RunToolResult> =>
   runNext(options, ["start", ...portArgs(options.port)])
 
 export type { E2eResult, RunToolResult as TaskResult, Stdio }
-export {
-  build,
-  delegatesToTurbo,
-  detectLinter,
-  dev,
-  lint,
-  PLAYWRIGHT_CONFIG,
-  start,
-  test,
-  testE2e,
-  typecheck,
-}
+export { build, dev, lint, PLAYWRIGHT_CONFIG, start, test, testE2e, typecheck }

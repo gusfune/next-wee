@@ -117,11 +117,4 @@ const configChange = (options: ConfigChangeOptions): FileChange => {
 }
 
 export type { AppConfig, AppConfigInput, AppLayout, LoadedConfig }
-export {
-  appConfigSchema,
-  CONFIG_DIR,
-  CONFIG_FILE,
-  configChange,
-  loadConfig,
-  ROOT_CONFIG_FILE,
-}
+export { CONFIG_DIR, CONFIG_FILE, configChange, loadConfig }

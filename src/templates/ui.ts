@@ -427,6 +427,5 @@ export {
   hookTestTemplate,
   providerTemplate,
   providerTestTemplate,
-  tsType,
   typeTemplate,
 }

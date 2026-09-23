@@ -356,7 +356,6 @@ export {
   ENV_ANCHORS,
   envTemplate,
   genericActionBlock,
-  matcherPrefix,
   PROXY_ANCHORS,
   proxyInterceptorBlock,
   proxyMatcherBlock,

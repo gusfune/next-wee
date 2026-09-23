@@ -67,4 +67,4 @@ const page = defineWeeCommand({
   run: (ctx, args) => runGenerator({ ctx, generator: pageGenerator, args }),
 })
 
-export { page, pageGenerator }
+export { page }

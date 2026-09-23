@@ -314,4 +314,4 @@ const resource = defineWeeCommand({
   },
 })
 
-export { resource, resourceGenerator }
+export { resource }

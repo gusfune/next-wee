@@ -85,4 +85,4 @@ const proxy = defineWeeCommand({
   run: (ctx, args) => runGenerator({ ctx, generator: proxyGenerator, args }),
 })
 
-export { parseMatchers, proxy, proxyGenerator }
+export { proxy }

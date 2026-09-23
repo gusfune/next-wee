@@ -186,8 +186,6 @@ export type { Manifest }
 export {
   deleteManifest,
   isPathSharedWithOtherManifest,
-  listManifests,
-  MANIFEST_DIR,
   manifestId,
   manifestPath,
   readManifest,

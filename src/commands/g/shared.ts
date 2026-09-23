@@ -70,11 +70,4 @@ const resolveAttributes = (
 const resolveModel = (ctx: Context, name: string, raw: string[]): ModelSpec =>
   buildModelSpec(name, resolveAttributes(ctx, name, raw))
 
-export {
-  attributeArgs,
-  nameArg,
-  resolveAttributes,
-  resolveModel,
-  segmentArg,
-  splitPositionals,
-}
+export { attributeArgs, nameArg, resolveModel, segmentArg, splitPositionals }

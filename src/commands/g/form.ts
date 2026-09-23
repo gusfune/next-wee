@@ -118,4 +118,4 @@ const form = defineWeeCommand({
   run: (ctx, args) => runGenerator({ ctx, generator: formGenerator, args }),
 })
 
-export { form, formChanges, formGenerator, formPath }
+export { form, formChanges, formPath }

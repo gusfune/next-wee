@@ -40,4 +40,4 @@ const provider = defineWeeCommand({
   run: (ctx, args) => runGenerator({ ctx, generator: providerGenerator, args }),
 })
 
-export { provider, providerGenerator }
+export { provider }

@@ -119,4 +119,4 @@ const readBlock = (
   return match?.[1]
 }
 
-export { hasBlock, injectBlock, markerLines, readBlock, removeBlock }
+export { hasBlock, injectBlock, readBlock, removeBlock }

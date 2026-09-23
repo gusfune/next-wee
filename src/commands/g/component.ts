@@ -54,4 +54,4 @@ const component = defineWeeCommand({
     runGenerator({ ctx, generator: componentGenerator, args }),
 })
 
-export { component, componentGenerator }
+export { component }

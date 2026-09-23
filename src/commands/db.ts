@@ -373,7 +373,6 @@ export {
   dbConsole,
   dbGenerate,
   dbInit,
-  dbInitGenerator,
   dbMigrate,
   dbPrepare,
   dbPush,

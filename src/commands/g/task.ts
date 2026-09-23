@@ -48,4 +48,4 @@ const task = defineWeeCommand({
   run: (ctx, args) => runGenerator({ ctx, generator: taskGenerator, args }),
 })
 
-export { task, taskGenerator }
+export { task }

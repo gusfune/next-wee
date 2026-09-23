@@ -543,7 +543,6 @@ export type {
 export {
   apiCollectionTemplate,
   apiMemberTemplate,
-  displayAttribute,
   displayLibTemplate,
   displayLibTestTemplate,
   e2eTemplate,

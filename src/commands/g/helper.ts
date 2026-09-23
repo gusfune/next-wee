@@ -68,4 +68,4 @@ const helper = defineWeeCommand({
     }),
 })
 
-export { helper, helperGenerator }
+export { helper }

@@ -26,4 +26,4 @@ const validator = defineWeeCommand({
     runGenerator({ ctx, generator: validatorGenerator, args }),
 })
 
-export { validator, validatorGenerator }
+export { validator }
