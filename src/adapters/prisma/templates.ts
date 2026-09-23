@@ -268,7 +268,6 @@ export {
   DEFAULT_URL,
   modelFile,
   modelTemplate,
-  PRISMA_PROVIDER,
   prismaConfigTemplate,
   seedRunnerTemplate,
   seedsReadmeTemplate,

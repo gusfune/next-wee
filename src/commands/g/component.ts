@@ -1,11 +1,13 @@
 /** `wee g component <Name> [--area=posts] [--client]`: component and its test. */
+
 import { join } from "node:path"
+import { createOrReplace } from "../../core/changes.js"
 import { defineWeeCommand } from "../../core/command.js"
 import { assertAppRouter } from "../../core/context.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
 import { kebabCase, pascalCase } from "../../lib/inflect.js"
 import { componentTemplate, componentTestTemplate } from "../../templates/ui.js"
-import { create, fileName, srcPath } from "./paths.js"
+import { fileName, srcPath } from "./paths.js"
 
 const componentGenerator = defineGenerator({
   name: "component",
@@ -36,21 +38,26 @@ const componentGenerator = defineGenerator({
         : srcPath(ctx, "components", kebabCase(args.area))
     const file = fileName(name)
     return [
-      create(
+      createOrReplace(
         ctx,
         join(dir, `${file}.tsx`),
         componentTemplate({ name, client: args.client })
       ),
-      create(ctx, join(dir, `${file}.test.tsx`), componentTestTemplate(name)),
+      createOrReplace(
+        ctx,
+        join(dir, `${file}.test.tsx`),
+        componentTestTemplate(name)
+      ),
     ]
   },
 })
 
 const component = defineWeeCommand({
+  dryRun: true,
   meta: { name: "component", description: componentGenerator.description },
   args: componentGenerator.args,
   run: (ctx, args) =>
     runGenerator({ ctx, generator: componentGenerator, args }),
 })
 
-export { component, componentGenerator }
+export { component }

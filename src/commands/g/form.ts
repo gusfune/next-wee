@@ -7,7 +7,7 @@ import { join } from "node:path"
 import { getDbAdapter } from "../../adapters/index.js"
 import type { ModelSpec } from "../../core/adapters.js"
 import type { FileChange } from "../../core/changes.js"
-import { readIfExists } from "../../core/changes.js"
+import { createOrReplace, readIfExists } from "../../core/changes.js"
 import { defineWeeCommand } from "../../core/command.js"
 import type { Context } from "../../core/context.js"
 import { assertAppRouter } from "../../core/context.js"
@@ -17,7 +17,7 @@ import { buildModelSpec } from "../../lib/attributes.js"
 import { kebabCase, plural } from "../../lib/inflect.js"
 import { actionsLibTemplate } from "../../templates/app.js"
 import { formTemplate, formTestTemplate } from "../../templates/ui.js"
-import { create, existsOrPending, relativeImport, srcPath } from "./paths.js"
+import { existsOrPending, relativeImport, srcPath } from "./paths.js"
 import { attributeArgs, nameArg, resolveModel } from "./shared.js"
 
 /** Path of the model's form component, e.g. `src/components/posts/post-form.tsx`. */
@@ -90,8 +90,8 @@ const formChanges = (
       path: srcPath(ctx, "lib", "actions.ts"),
       content: actionsLibTemplate(),
     },
-    create(ctx, file, formTemplate(templateOptions)),
-    create(
+    createOrReplace(ctx, file, formTemplate(templateOptions)),
+    createOrReplace(
       ctx,
       file.replace(/\.tsx$/, ".test.tsx"),
       formTestTemplate(templateOptions)
@@ -112,9 +112,10 @@ const formGenerator = defineGenerator({
 })
 
 const form = defineWeeCommand({
+  dryRun: true,
   meta: { name: "form", description: formGenerator.description },
   args: formGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: formGenerator, args }),
 })
 
-export { form, formChanges, formGenerator, formPath }
+export { form, formChanges, formPath }

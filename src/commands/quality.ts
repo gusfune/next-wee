@@ -9,6 +9,7 @@ import { defineWeeCommand } from "../core/command.js"
 import type { Context } from "../core/context.js"
 import { assertAppRouter } from "../core/context.js"
 import { WeeError } from "../core/errors.js"
+import { rowsOf } from "../core/output.js"
 import type { TaskResult } from "../lib/tasks.js"
 import {
   lint,
@@ -17,7 +18,6 @@ import {
   testE2e,
   typecheck,
 } from "../lib/tasks.js"
-import { rowsOf } from "./g/setup.js"
 
 /**
  * Turns a tool result into the command's result. Human mode streamed the

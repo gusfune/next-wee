@@ -233,7 +233,6 @@ const installPackages = async (options: InstallOptions): Promise<void> => {
 export type { RunBinResult, RunScriptResult, RunToolResult }
 export {
   bunVersion,
-  findPackageDir,
   importFromTarget,
   installPackages,
   missingPackages,

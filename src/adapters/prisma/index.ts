@@ -20,10 +20,15 @@ import type {
   PrepareResult,
 } from "../../core/adapters.js"
 import type { FileChange } from "../../core/changes.js"
-import { applyChanges, readIfExists } from "../../core/changes.js"
+import {
+  applyChanges,
+  createOrReplace,
+  readIfExists,
+} from "../../core/changes.js"
 import type { Context } from "../../core/context.js"
 import { sourceDir } from "../../core/context.js"
 import { WeeError } from "../../core/errors.js"
+import { hasBlock, removeBlock } from "../../core/inject.js"
 import { databaseUrl, loadTargetEnv } from "../../lib/env.js"
 import { kebabCase, plural } from "../../lib/inflect.js"
 import { runBin } from "../../lib/packages.js"
@@ -33,16 +38,15 @@ import {
   assertResetAllowed,
   baseInit,
   createIfMissing,
-  createOrReplace,
   databaseName,
   dbDirs,
+  emitValidator,
   hasSeeds,
   provider,
   runSeed,
   sqlShell,
   withDriver,
 } from "../shared.js"
-import { validatorTemplate, validatorTestTemplate } from "../validator.js"
 import { referencedModel } from "./fields.js"
 import {
   diffSql,
@@ -151,6 +155,34 @@ const modelPath = (ctx: Context, model: Pick<ModelSpec, "table">): string =>
 const modelTypeImport = (ctx: Context): string =>
   join(generatedDir(ctx), "client.ts")
 
+const relationMarker = (table: string, attribute: string): string =>
+  `relation-${kebabCase(table)}-${kebabCase(attribute)}`
+
+/** Removes the back-relation blocks that `backRelations` injected for these attributes. */
+const dropBackRelations = (
+  ctx: Context,
+  table: string,
+  attributes: Attribute[]
+): FileChange[] =>
+  attributes.flatMap((attribute) => {
+    if (attribute.references === undefined) {
+      return []
+    }
+    const path = modelPath(ctx, { table: attribute.references })
+    const source = readIfExists(join(ctx.target.path, path))
+    const marker = relationMarker(table, attribute.name)
+    if (source === undefined || !hasBlock(source, path, marker)) {
+      return []
+    }
+    return [
+      {
+        kind: "modify" as const,
+        path,
+        content: removeBlock(source, path, marker),
+      },
+    ]
+  })
+
 /** Injects `posts Post[]` into the referenced model of every `references` attribute. */
 const backRelations = (
   ctx: Context,
@@ -175,7 +207,7 @@ const backRelations = (
       return {
         kind: "inject" as const,
         path,
-        marker: `relation-${kebabCase(model.table)}-${kebabCase(attribute.name)}`,
+        marker: relationMarker(model.table, attribute.name),
         content: backRelationLine(model.name, model.table),
         // After the last scalar field, before the blank line and `@@map`.
         after: "  updatedAt ",
@@ -194,19 +226,6 @@ const emitModel = (
   },
   ...backRelations(ctx, model, model.attributes, pending),
 ]
-
-const emitValidator = (ctx: Context, model: ModelSpec): FileChange[] => {
-  const dir = join(sourceDir(ctx), "lib/validators")
-  const file = kebabCase(model.name)
-  return [
-    createOrReplace(ctx, join(dir, `${file}.ts`), validatorTemplate(model)),
-    createOrReplace(
-      ctx,
-      join(dir, `${file}.test.ts`),
-      validatorTestTemplate(model)
-    ),
-  ]
-}
 
 const emitService = (ctx: Context, model: ModelSpec): FileChange[] => {
   const src = sourceDir(ctx)
@@ -254,6 +273,8 @@ const emitMigration = async (
           change.attributes
         )
       )
+    } else {
+      pending.push(...dropBackRelations(ctx, change.table, change.attributes))
     }
   }
   const migration = await generateMigration({ ctx, name, change, pending })

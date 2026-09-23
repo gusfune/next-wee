@@ -21,6 +21,7 @@ const dependencyVersion = (
 }
 
 const about = defineWeeCommand({
+  dryRun: true,
   meta: { name: "about", description: "Show versions and the resolved target" },
   run: async (ctx) => {
     const pkg = readPackageJson(ctx.target.path)

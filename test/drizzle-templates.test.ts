@@ -97,3 +97,80 @@ describe("validator and service templates", () => {
     expect(source).not.toContain(".returning()")
   })
 })
+
+describe("decimal, datetime and default values", () => {
+  const order = buildModelSpec(
+    "Order",
+    parseAttributes([
+      "price:decimal",
+      "placedAt:datetime:default=now",
+      "token:uuid:default=random",
+    ])
+  )
+
+  it("decimal columns read as numbers, as the validator expects", () => {
+    expect(modelTemplate("postgres", order)).toContain(
+      'numeric("price", { mode: "number" })'
+    )
+    expect(modelTemplate("mysql", order)).toContain('mode: "number"')
+    expect(validatorTemplate(order)).toContain("price: z.number(),")
+  })
+
+  it("datetime validators coerce ISO strings from JSON bodies", () => {
+    expect(validatorTemplate(order)).toContain("z.coerce.date()")
+  })
+
+  it("down sql maps now and random to SQL expressions", () => {
+    const sql = downSql("postgres", {
+      kind: "remove-columns",
+      table: "orders",
+      attributes: order.attributes,
+    })
+    expect(sql).toContain("DEFAULT CURRENT_TIMESTAMP")
+    expect(sql).toContain("DEFAULT gen_random_uuid()")
+    expect(sql).not.toContain("'now'")
+    expect(sql).not.toContain("'random'")
+  })
+
+  it("a second reference to the same table reuses the import", () => {
+    const edited = editModelSource({
+      provider: "postgres",
+      table: "posts",
+      source: modelTemplate("postgres", post),
+      add: parseAttributes(["author:references"]).map((attribute) => ({
+        ...attribute,
+        name: "editorId",
+        column: "editor_id",
+      })),
+      remove: [],
+    })
+    expect(edited.match(/import \{ authors \}/g)).toHaveLength(1)
+  })
+})
+
+describe("attribute validation", () => {
+  it.each([
+    ["status:enum[draft,it's]", "enum value"],
+    ["views:integer:default=many", "must be an integer"],
+    ["price:decimal:default=1e3", "must be a number"],
+    ["live:boolean:default=yes", "true or false"],
+    ["at:datetime:default=tomorrow", '"now"'],
+    ["token:uuid:default=abc", "UUID"],
+    ["meta:json:default={bad", "valid JSON"],
+    ["status:enum[a,b]:default=c", "one of a, b"],
+    ["9lives:string", "valid identifier"],
+  ])("rejects %s", (raw, message) => {
+    expect(() => parseAttributes([raw])).toThrow(message)
+  })
+
+  it("accepts valid defaults", () => {
+    expect(
+      parseAttributes([
+        "views:integer:default=-1",
+        "price:decimal:default=9.99",
+        "meta:json:default={}",
+        "status:enum[a,b]:default=b",
+      ])
+    ).toHaveLength(4)
+  })
+})

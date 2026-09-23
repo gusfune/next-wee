@@ -3,6 +3,7 @@
  * into a FileChange list. `runGenerator` applies the list, writes the
  * manifest and returns rows for the output layer.
  */
+import { relative } from "node:path"
 import type { ArgsDef, ParsedArgs } from "citty"
 import type { FileChange } from "./changes.js"
 import { applyChanges, describeChanges } from "./changes.js"
@@ -73,9 +74,9 @@ const recordGeneratorRun = (options: RecordRunOptions): CommandResult => {
     changes: applied,
     dryRun: ctx.flags.dryRun,
   })
-  const manifest = manifestPath(ctx.target.path, generator, name).replace(
-    `${ctx.target.path}/`,
-    ""
+  const manifest = relative(
+    ctx.target.path,
+    manifestPath(ctx.target.path, generator, name)
   )
   return {
     title: ctx.flags.dryRun

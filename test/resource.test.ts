@@ -194,7 +194,10 @@ export default async (): Promise<boolean> => {
   const bad = await POST(request("POST", url, { body: 123 }))
   expect(bad.status === 400, "POST with a wrong field answers 400")
 
-  const created = await POST(request("POST", url, { body: "first" }))
+  // JSON carries dates as ISO strings; the validator coerces them.
+  const created = await POST(
+    request("POST", url, { body: "first", postedAt: "2026-01-02T03:04:05.000Z" })
+  )
   expect(created.status === 201, "POST answers 201")
   const row = (await created.json()) as { id: string }
 
@@ -316,6 +319,7 @@ describe("phase 3 resource", () => {
     const { out } = await ok(resource, [
       "Comment",
       "body:text",
+      "postedAt:datetime:optional",
       "--api",
       "--skip-install",
     ])

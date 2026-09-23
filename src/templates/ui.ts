@@ -93,24 +93,30 @@ const inputType = (attribute: Attribute): string => {
   }
 }
 
-/** The `defaultValue`/`defaultChecked` expression for an existing record. */
+/**
+ * The `defaultValue`/`defaultChecked` expression. Values sent back by a
+ * failed submit win over the record, so React's form reset keeps the input.
+ */
 const defaultExpression = (entity: string, attribute: Attribute): string => {
   const access = `${entity}?.${attribute.name}`
+  const submitted = `state.values?.${attribute.name}`
   switch (attribute.type) {
     case "boolean":
-      return `defaultChecked={${access} ?? false}`
+      return `defaultChecked={state.values === undefined ? (${access} ?? false) : ${submitted} !== undefined}`
     case "datetime":
-      return `defaultValue={${access}?.toISOString().slice(0, 16) ?? ""}`
+      // UTC, the zone `form.date` reads it in.
+      return `defaultValue={${submitted} ?? ${access}?.toISOString().slice(0, 16) ?? ""}`
     case "json":
-      return `defaultValue={${access} === undefined ? "" : JSON.stringify(${access})}`
+      return `defaultValue={${submitted} ?? (${access} === undefined ? "" : JSON.stringify(${access}))}`
     default:
-      return `defaultValue={${access} ?? ""}`
+      return `defaultValue={${submitted} ?? ${access} ?? ""}`
   }
 }
 
 const fieldLines = (entity: string, attribute: Attribute): string[] => {
   const { name } = attribute
-  const label = titleCase(name)
+  const label =
+    attribute.type === "datetime" ? `${titleCase(name)} (UTC)` : titleCase(name)
   const required =
     attribute.optional || attribute.defaultValue !== undefined
       ? ""
@@ -421,6 +427,5 @@ export {
   hookTestTemplate,
   providerTemplate,
   providerTestTemplate,
-  tsType,
   typeTemplate,
 }

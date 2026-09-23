@@ -103,6 +103,16 @@ describe("init", () => {
   })
 })
 
+describe("hand-edited JSON", () => {
+  it("fails with the file's error code when .app/config.json is malformed", async () => {
+    await run(init, [])
+    writeFileSync(join(app, ".app/config.json"), "{ broken")
+    const { exit, err } = await run(destroy, ["init", "app", "--json"])
+    expect(exit).toBe(1)
+    expect(JSON.parse(err).error.code).toBe("invalid-config")
+  })
+})
+
 describe("destroy", () => {
   it("reverses init and prunes empty directories", async () => {
     await run(init, [])
@@ -170,5 +180,89 @@ describe("destroy", () => {
     expect(readFileSync(join(app, "src/app/layout.tsx"), "utf8")).toBe(
       "original\n"
     )
+  })
+})
+
+describe("destroy after re-runs and deletes", () => {
+  const record = (changes: Parameters<typeof applyChanges>[0]["changes"]) =>
+    writeManifest({
+      targetPath: app,
+      generator: "model",
+      name: "Post",
+      cliVersion: "test",
+      changes: applyChanges({ root: app, dryRun: false, changes }),
+      dryRun: false,
+    })
+
+  it("a --force re-run keeps the first run's create, so destroy deletes", async () => {
+    record([{ kind: "create", path: "src/post.ts", content: "one\n" }])
+    // A forced re-run replaces the file it created with a modify.
+    record([{ kind: "modify", path: "src/post.ts", content: "two\n" }])
+    const { exit } = await run(destroy, ["model", "Post"])
+    expect(exit).toBe(0)
+    expect(existsSync(join(app, "src/post.ts"))).toBe(false)
+  })
+
+  it("restores a file the run deleted", async () => {
+    writeFileSync(join(app, "src/old.ts"), "old\n")
+    record([{ kind: "delete", path: "src/old.ts" }])
+    expect(existsSync(join(app, "src/old.ts"))).toBe(false)
+    const { exit } = await run(destroy, ["model", "Post"])
+    expect(exit).toBe(0)
+    expect(readFileSync(join(app, "src/old.ts"), "utf8")).toBe("old\n")
+  })
+})
+
+describe("applyChanges", () => {
+  it("writes nothing when a later change fails its check", () => {
+    const apply = () =>
+      applyChanges({
+        root: app,
+        dryRun: false,
+        changes: [
+          { kind: "create", path: "src/first.ts", content: "one\n" },
+          { kind: "modify", path: "src/missing.ts", content: "two\n" },
+        ],
+      })
+    expect(apply).toThrow("does not exist")
+    expect(existsSync(join(app, "src/first.ts"))).toBe(false)
+  })
+
+  it("keeps $ patterns in injected content on re-injection", () => {
+    const inject = (content: string) =>
+      applyChanges({
+        root: app,
+        dryRun: false,
+        changes: [
+          { kind: "ensure", path: "src/q.ts", content: "" },
+          { kind: "inject", path: "src/q.ts", marker: "q", content },
+        ],
+      })
+    inject("const a = 1\n")
+    inject("const price = '$&$$'\n")
+    expect(readFileSync(join(app, "src/q.ts"), "utf8")).toContain(
+      "const price = '$&$$'"
+    )
+  })
+
+  it("finds and replaces blocks in a CRLF file", async () => {
+    const { injectBlock, removeBlock } = await import("../src/core/inject.js")
+    const source = "a\r\n// wee:begin x\r\nold\r\n// wee:end x\r\nb\r\n"
+    const next = injectBlock({ source, path: "q.ts", id: "x", content: "new" })
+    expect(next).toContain("new")
+    expect(next).not.toContain("old")
+    expect(removeBlock(source, "q.ts", "x")).toBe("a\r\nb\r\n")
+  })
+
+  it("rejects paths that leave the app", async () => {
+    const { fileChangeSchema } = await import("../src/core/changes.js")
+    for (const path of ["../outside.ts", "src/../../x.ts", "/etc/passwd"]) {
+      const parsed = fileChangeSchema.safeParse({
+        kind: "create",
+        path,
+        content: "",
+      })
+      expect(parsed.success).toBe(false)
+    }
   })
 })

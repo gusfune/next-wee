@@ -36,6 +36,52 @@ const RESERVED_NAMES: ReadonlySet<string> = new Set([
 const isAttributeType = (value: string): value is AttributeType =>
   ATTRIBUTE_TYPES.has(value)
 
+/** Names and enum members land in TS, SQL and Prisma as bare identifiers. */
+const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+const isJson = (value: string): boolean => {
+  try {
+    JSON.parse(value)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Why `value` is not a valid default for the attribute, or undefined when it is. */
+const defaultProblem = (
+  attribute: Attribute,
+  value: string
+): string | undefined => {
+  switch (attribute.type) {
+    case "integer":
+      return /^-?\d+$/.test(value) ? undefined : "must be an integer"
+    case "decimal":
+      return /^-?\d+(\.\d+)?$/.test(value) ? undefined : "must be a number"
+    case "boolean":
+      return value === "true" || value === "false"
+        ? undefined
+        : "must be true or false"
+    case "datetime":
+      return value === "now" ? undefined : 'must be "now"'
+    case "uuid":
+    case "references":
+      return value === "random" || UUID.test(value)
+        ? undefined
+        : 'must be "random" or a UUID'
+    case "json":
+      return isJson(value) ? undefined : "must be valid JSON"
+    case "enum":
+      return attribute.values?.includes(value)
+        ? undefined
+        : `must be one of ${attribute.values?.join(", ") ?? ""}`
+    default:
+      return undefined
+  }
+}
+
 const parseType = (
   raw: string,
   attribute: string
@@ -50,6 +96,13 @@ const parseType = (
       throw new WeeError(
         "invalid-attribute",
         `${attribute}: enum needs at least one value, e.g. status:enum[draft,published]`
+      )
+    }
+    const bad = values.find((value) => !IDENTIFIER.test(value))
+    if (bad !== undefined) {
+      throw new WeeError(
+        "invalid-attribute",
+        `${attribute}: enum value "${bad}" must be letters, digits and underscores, starting with a letter`
       )
     }
     return { type: "enum", values }
@@ -72,6 +125,12 @@ const parseAttribute = (raw: string): Attribute => {
     )
   }
   const name = camelCase(rawName)
+  if (!IDENTIFIER.test(name)) {
+    throw new WeeError(
+      "invalid-attribute",
+      `${raw}: "${rawName}" does not make a valid identifier`
+    )
+  }
   if (RESERVED_NAMES.has(name)) {
     throw new WeeError(
       "invalid-attribute",
@@ -101,7 +160,12 @@ const parseAttribute = (raw: string): Attribute => {
     } else if (modifier === "optional") {
       attribute.optional = true
     } else if (modifier.startsWith("default=")) {
-      attribute.defaultValue = modifier.slice("default=".length)
+      const value = modifier.slice("default=".length)
+      const problem = defaultProblem(attribute, value)
+      if (problem !== undefined) {
+        throw new WeeError("invalid-attribute", `${raw}: default ${problem}`)
+      }
+      attribute.defaultValue = value
     } else {
       throw new WeeError(
         "invalid-attribute",

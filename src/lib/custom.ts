@@ -142,11 +142,4 @@ const taskLoaders = async (
 }
 
 export type { Extension }
-export {
-  customGeneratorLoaders,
-  GENERATORS_DIR,
-  listCustomGenerators,
-  listTasks,
-  TASKS_DIR,
-  taskLoaders,
-}
+export { customGeneratorLoaders, GENERATORS_DIR, TASKS_DIR, taskLoaders }

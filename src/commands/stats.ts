@@ -48,6 +48,7 @@ const formatRatio = (code: number, tests: number): string =>
   `1:${code === 0 ? 0 : Math.round((tests / code) * 10) / 10}`
 
 const stats = defineWeeCommand({
+  dryRun: true,
   meta: {
     name: "stats",
     description: "Lines of code by primitive and the test-to-code ratio",

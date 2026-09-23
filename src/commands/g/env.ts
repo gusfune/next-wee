@@ -110,9 +110,10 @@ const envGenerator = defineGenerator({
 })
 
 const env = defineWeeCommand({
+  dryRun: true,
   meta: { name: "env", description: envGenerator.description },
   args: envGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: envGenerator, args }),
 })
 
-export { env, envGenerator, parseEnvVars }
+export { env }

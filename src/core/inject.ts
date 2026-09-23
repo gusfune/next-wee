@@ -1,7 +1,8 @@
 /**
  * Marker-based injection into existing files. A block sits between
  * `wee:begin <id>` and `wee:end <id>` comment lines so `destroy` can remove
- * it without an AST. The comment style follows the file extension.
+ * it without an AST. The comment style follows the file extension. Patterns
+ * accept CRLF, so files checked out on Windows keep working.
  */
 import { extname } from "node:path"
 
@@ -64,7 +65,9 @@ interface InjectOptions {
 
 /** Whole-line match, so `job-x` does not report `job-x-import` as present. */
 const hasBlock = (source: string, path: string, id: string): boolean =>
-  new RegExp(`^${escapeRegExp(markerLines(path, id).begin)}$`, "m").test(source)
+  new RegExp(`^${escapeRegExp(markerLines(path, id).begin)}\\r?$`, "m").test(
+    source
+  )
 
 const injectBlock = (options: InjectOptions): string => {
   const { source, path, id, content, after } = options
@@ -87,13 +90,16 @@ const injectBlock = (options: InjectOptions): string => {
 const blockPattern = (path: string, id: string): RegExp => {
   const { begin, end } = markerLines(path, id)
   return new RegExp(
-    `${escapeRegExp(begin)}\\n[\\s\\S]*?${escapeRegExp(end)}\\n?`
+    `${escapeRegExp(begin)}\\r?\\n[\\s\\S]*?${escapeRegExp(end)}(?:\\r?\\n)?`
   )
 }
 
 const replaceBlock = (options: InjectOptions): string => {
   const { source, path, id, content } = options
-  return source.replace(blockPattern(path, id), wrapBlock(path, id, content))
+  // A function replacer: a string one would expand `$&` and `$$` in content.
+  return source.replace(blockPattern(path, id), () =>
+    wrapBlock(path, id, content)
+  )
 }
 
 const removeBlock = (source: string, path: string, id: string): string => {
@@ -108,9 +114,9 @@ const readBlock = (
 ): string | undefined => {
   const { begin, end } = markerLines(path, id)
   const match = source.match(
-    new RegExp(`${escapeRegExp(begin)}\\n([\\s\\S]*?)${escapeRegExp(end)}`)
+    new RegExp(`${escapeRegExp(begin)}\\r?\\n([\\s\\S]*?)${escapeRegExp(end)}`)
   )
   return match?.[1]
 }
 
-export { hasBlock, injectBlock, markerLines, readBlock, removeBlock }
+export { hasBlock, injectBlock, readBlock, removeBlock }

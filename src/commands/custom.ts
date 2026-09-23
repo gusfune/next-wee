@@ -83,6 +83,7 @@ const runCustomGenerator = async (
 
 const customGeneratorCommand = (generator: ExtensionCommand) =>
   defineWeeCommand({
+    dryRun: true,
     meta: { name: generator.name, description: generator.description },
     // The generator's own args live in the child; the parent forwards them raw.
     run: (ctx, _args, rawArgs) =>

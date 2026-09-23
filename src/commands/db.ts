@@ -69,18 +69,8 @@ const dbInitGenerator = defineGenerator({
   },
   manifestName: () => "init",
   run: async (ctx, args) => {
-    assertAppRouter(ctx)
-    const adapter = parseAdapter(args.adapter)
-    if (ctx.config.db !== undefined && !ctx.flags.force) {
-      throw new WeeError(
-        "db-already-initialised",
-        `${ctx.configPath} already has a db section. Pass --force to overwrite.`
-      )
-    }
-    const result = await dbAdapters[adapter].init(
-      ctx,
-      initOptions(ctx, adapter, args.provider)
-    )
+    const { adapter, options } = resolveInit(ctx, args)
+    const result = await dbAdapters[adapter].init(ctx, options)
     return result.changes
   },
 })
@@ -139,6 +129,27 @@ interface DbInitArgs {
   "skip-install": boolean
 }
 
+interface ResolvedInit {
+  adapter: AdapterName
+  options: InitOptions
+}
+
+/** Checks the target and resolves adapter and options from the current disk. */
+const resolveInit = (
+  ctx: Context,
+  args: Pick<DbInitArgs, "adapter" | "provider">
+): ResolvedInit => {
+  assertAppRouter(ctx)
+  const adapter = parseAdapter(args.adapter)
+  if (ctx.config.db !== undefined && !ctx.flags.force) {
+    throw new WeeError(
+      "db-already-initialised",
+      `${ctx.configPath} already has a db section. Pass --force to overwrite.`
+    )
+  }
+  return { adapter, options: initOptions(ctx, adapter, args.provider) }
+}
+
 /** The `db:init` body, shared with `wee new --db`. */
 const runDbInit = async (
   ctx: Context,
@@ -146,6 +157,7 @@ const runDbInit = async (
 ): Promise<CommandResult> => {
   // citty's ParsedArgs adds `_` and an index signature that rejects
   // `undefined`; the generator reads only the three fields above.
+  const { adapter, options } = resolveInit(ctx, args)
   const parsed = { _: [], ...args } as ParsedArgs<typeof dbInitGenerator.args>
   const result = await runGenerator({
     ctx,
@@ -155,12 +167,11 @@ const runDbInit = async (
   if (ctx.flags.dryRun || args["skip-install"]) {
     return result
   }
-  // The generator already validated the provider; recompute the package
-  // lists from the adapter so they stay in one place.
-  const adapter = parseAdapter(args.adapter)
+  // Resolved before the run: after it, the files the generator wrote look
+  // like an existing setup and Prisma would refuse to adopt them.
   const { dependencies, devDependencies } = await dbAdapters[adapter].init(
     ctx,
-    initOptions(ctx, adapter, args.provider)
+    options
   )
   await installPackages({ ctx, dependencies, devDependencies })
   const rows = Array.isArray(result.data) ? result.data : [result.data]
@@ -179,6 +190,7 @@ const runDbInit = async (
 }
 
 const dbInit = defineWeeCommand({
+  dryRun: true,
   meta: { name: "db:init", description: dbInitGenerator.description },
   args: dbInitGenerator.args,
   run: runDbInit,
@@ -243,6 +255,7 @@ const dbRollback = defineWeeCommand({
 })
 
 const dbStatus = defineWeeCommand({
+  dryRun: true,
   meta: {
     name: "db:status",
     description: "List migrations and whether they are applied",
@@ -290,7 +303,7 @@ const runSeed = async (
 const dbSeed = defineWeeCommand({
   meta: {
     name: "db:seed",
-    description: "Run src/db/seed.ts (all seeds or --file)",
+    description: "Run the seeds in src/db/seeds (all, or one with --file)",
   },
   args: seedArgs,
   run: (ctx, args) => runSeed(ctx, args.file, false),
@@ -335,7 +348,10 @@ const dbReset = defineWeeCommand({
 })
 
 const dbStudio = defineWeeCommand({
-  meta: { name: "db:studio", description: "Open Drizzle Studio" },
+  meta: {
+    name: "db:studio",
+    description: "Open Drizzle Studio or Prisma Studio",
+  },
   run: async (ctx) => {
     await getDbAdapter(ctx).studio(ctx)
     return undefined
@@ -357,7 +373,6 @@ export {
   dbConsole,
   dbGenerate,
   dbInit,
-  dbInitGenerator,
   dbMigrate,
   dbPrepare,
   dbPush,

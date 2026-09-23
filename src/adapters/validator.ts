@@ -16,8 +16,8 @@ const enumName = (
   return { variable: camelCase(sqlName), sqlName }
 }
 
-const quoteLiteral = (value: string): string =>
-  `"${value.replace(/"/g, '\\"')}"`
+/** A TS string literal. JSON escaping also covers backslashes and newlines. */
+const quoteLiteral = (value: string): string => JSON.stringify(value)
 
 const isNumeric = (attribute: Attribute): boolean =>
   attribute.type === "integer" || attribute.type === "decimal"
@@ -37,7 +37,8 @@ const zodCode = (model: ModelSpec, attribute: Attribute): string => {
       case "boolean":
         return "z.boolean()"
       case "datetime":
-        return "z.date()"
+        // Coerce: JSON bodies and form data carry dates as strings.
+        return "z.coerce.date()"
       case "uuid":
       case "references":
         return "z.string().uuid()"
@@ -77,12 +78,16 @@ const sampleValue = (attribute: Attribute): string => {
 }
 
 /** A value that fails the attribute's validator. */
-const wrongValue = (attribute: Attribute): string =>
-  attribute.type === "json"
-    ? "undefined"
-    : isNumeric(attribute)
-      ? '"not a number"'
-      : "123"
+const wrongValue = (attribute: Attribute): string => {
+  if (attribute.type === "json") {
+    return "undefined"
+  }
+  if (isNumeric(attribute)) {
+    return '"not a number"'
+  }
+  // A number coerces to a valid date, so a datetime gets an unparsable string.
+  return attribute.type === "datetime" ? '"not a date"' : "123"
+}
 
 const validatorTemplate = (model: ModelSpec): string => {
   const enums = model.attributes.filter(
@@ -183,6 +188,4 @@ export {
   sampleValue,
   validatorTemplate,
   validatorTestTemplate,
-  wrongValue,
-  zodCode,
 }

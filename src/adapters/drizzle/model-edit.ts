@@ -102,10 +102,14 @@ const addColumns = (edit: ModelEdit): string => {
   for (const attribute of add) {
     if (attribute.type === "references" && attribute.references !== undefined) {
       const ref = attribute.references
-      source = source.replace(
-        /^(import \{[^}]+\} from "drizzle-orm\/[a-z]+-core"\n)/m,
-        `$1import { ${camelCase(ref)} } from "./${kebabCase(ref)}"\n`
-      )
+      const refImport = `import { ${camelCase(ref)} } from "./${kebabCase(ref)}"\n`
+      // A second reference to the same table reuses the first import.
+      if (!source.includes(refImport)) {
+        source = source.replace(
+          /^(import \{[^}]+\} from "drizzle-orm\/[a-z]+-core"\n)/m,
+          `$1${refImport}`
+        )
+      }
     }
     if (attribute.type === "enum" && provider === "postgres") {
       const { variable, sqlName } = enumName(table, attribute)

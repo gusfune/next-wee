@@ -1,4 +1,5 @@
 /** `wee g hook <useName>`: a state hook and its test. */
+import { createOrReplace } from "../../core/changes.js"
 import { defineWeeCommand } from "../../core/command.js"
 import { assertAppRouter } from "../../core/context.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
@@ -7,7 +8,7 @@ import {
   hookTemplate,
   hookTestTemplate,
 } from "../../templates/ui.js"
-import { create, srcPath } from "./paths.js"
+import { srcPath } from "./paths.js"
 
 const hookGenerator = defineGenerator({
   name: "hook",
@@ -24,8 +25,12 @@ const hookGenerator = defineGenerator({
     assertAppRouter(ctx)
     const { file } = hookNames(args.name)
     return [
-      create(ctx, srcPath(ctx, "hooks", `${file}.ts`), hookTemplate(args.name)),
-      create(
+      createOrReplace(
+        ctx,
+        srcPath(ctx, "hooks", `${file}.ts`),
+        hookTemplate(args.name)
+      ),
+      createOrReplace(
         ctx,
         srcPath(ctx, "hooks", `${file}.test.tsx`),
         hookTestTemplate(args.name)
@@ -35,9 +40,10 @@ const hookGenerator = defineGenerator({
 })
 
 const hook = defineWeeCommand({
+  dryRun: true,
   meta: { name: "hook", description: hookGenerator.description },
   args: hookGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: hookGenerator, args }),
 })
 
-export { hook, hookGenerator }
+export { hook }

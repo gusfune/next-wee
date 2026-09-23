@@ -51,6 +51,7 @@ const notesIn = (file: string, content: string): Note[] => {
 }
 
 const notes = defineWeeCommand({
+  dryRun: true,
   meta: {
     name: "notes",
     description: "List TODO, FIXME and OPTIMISE annotations",

@@ -6,12 +6,13 @@
  * holds a dotenv text.
  */
 import { existsSync, readFileSync } from "node:fs"
-import { join } from "node:path"
+import { join, posix } from "node:path"
 import { parseEnv } from "node:util"
 import { Decrypter, Encrypter } from "age-encryption"
 import { WeeError } from "../core/errors.js"
 
-const CREDENTIALS_DIR = join("config", "credentials")
+// Posix separators: these paths also go into `.gitignore`, which needs `/`.
+const CREDENTIALS_DIR = posix.join("config", "credentials")
 const RECIPIENTS_FILE = ".age-recipients"
 const IDENTITY_FILE = ".age-identity"
 const IDENTITY_ENV = "WEE_CREDENTIALS_KEY"
@@ -25,13 +26,21 @@ interface CredentialPaths {
 /** Target-relative paths of the credentials folder and its key files. */
 const credentialPaths = (): CredentialPaths => ({
   dir: CREDENTIALS_DIR,
-  recipients: join(CREDENTIALS_DIR, RECIPIENTS_FILE),
-  identity: join(CREDENTIALS_DIR, IDENTITY_FILE),
+  recipients: posix.join(CREDENTIALS_DIR, RECIPIENTS_FILE),
+  identity: posix.join(CREDENTIALS_DIR, IDENTITY_FILE),
 })
 
 /** Target-relative path of one environment's ciphertext. */
-const credentialFile = (env: string): string =>
-  join(CREDENTIALS_DIR, `${env}.env.enc`)
+const credentialFile = (env: string): string => {
+  // The name becomes a file name, so `../x` must not reach the path.
+  if (!/^[a-z0-9][a-z0-9_-]*$/i.test(env)) {
+    throw new WeeError(
+      "invalid-env",
+      `"${env}" is not an environment name. Use letters, digits, - and _.`
+    )
+  }
+  return posix.join(CREDENTIALS_DIR, `${env}.env.enc`)
+}
 
 /** First line of a fresh credentials file. */
 const credentialHeader = (env: string): string =>
@@ -131,13 +140,11 @@ const parseCredentials = (text: string): Record<string, string> => {
 
 export type { CredentialPaths }
 export {
-  CREDENTIALS_DIR,
   credentialFile,
   credentialHeader,
   credentialPaths,
   decryptText,
   encryptText,
-  IDENTITY_ENV,
   IDENTITY_FILE,
   parseCredentials,
   RECIPIENTS_FILE,

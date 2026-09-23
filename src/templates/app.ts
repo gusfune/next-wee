@@ -72,12 +72,13 @@ const proxy = (request: NextRequest): NextResponse => {
   return NextResponse.next()
 }
 
-const config = {
+// Next.js reads \`config\` only from an \`export const\` declaration.
+export const config = {
 ${PROXY_ANCHORS.matcher}
   ],
 }
 
-export { config, proxy }
+export { proxy }
 `
 
 /** Static prefix of a matcher, e.g. `/dashboard` for `/dashboard/:path*`. */
@@ -98,7 +99,7 @@ const proxyInterceptorBlock = (options: ProxyBlockOptions): string => {
     prefixes.length === 1 && prefixes[0] === "/"
       ? []
       : [
-          `    if (!${prefixes.map((prefix) => `request.nextUrl.pathname.startsWith("${prefix}")`).join(" && !")}) {`,
+          `    if (!${prefixes.map((prefix) => `request.nextUrl.pathname.startsWith(${JSON.stringify(prefix)})`).join(" && !")}) {`,
           "      return undefined",
           "    }",
         ]
@@ -113,7 +114,7 @@ const proxyInterceptorBlock = (options: ProxyBlockOptions): string => {
 }
 
 const proxyMatcherBlock = (matchers: string[]): string =>
-  matchers.map((matcher) => `    "${matcher}",`).join("\n")
+  matchers.map((matcher) => `    ${JSON.stringify(matcher)},`).join("\n")
 
 /** Shared helpers for server actions. Created once by the first `g action` or `g form`. */
 const actionsLibTemplate = (): string => `/**
@@ -126,6 +127,8 @@ interface ActionState {
   message?: string
   /** Validation messages by field name. */
   errors?: Record<string, string[]>
+  /** Submitted text fields, so a failed submit keeps what the user typed. */
+  values?: Record<string, string>
 }
 
 const initialActionState: ActionState = { status: "idle" }
@@ -135,14 +138,32 @@ interface Issue {
   message: string
 }
 
-/** Error state from validation issues (Zod's shape), grouped by the first path segment. */
-const invalid = (issues: ReadonlyArray<Issue>): ActionState => {
+/**
+ * Error state from validation issues (Zod's shape), grouped by the first
+ * path segment. Pass the FormData to send the submitted values back: React
+ * resets the form after an action, and the form reads them as defaults.
+ */
+const invalid = (
+  issues: ReadonlyArray<Issue>,
+  data?: FormData
+): ActionState => {
   const errors: Record<string, string[]> = {}
   for (const issue of issues) {
     const key = String(issue.path[0] ?? "form")
     errors[key] = [...(errors[key] ?? []), issue.message]
   }
-  return { status: "error", message: "Check the highlighted fields.", errors }
+  const values: Record<string, string> = {}
+  for (const [key, value] of data?.entries() ?? []) {
+    if (typeof value === "string") {
+      values[key] = value
+    }
+  }
+  return {
+    status: "error",
+    message: "Check the highlighted fields.",
+    errors,
+    ...(data === undefined ? {} : { values }),
+  }
 }
 
 const text = (data: FormData, name: string): string | undefined => {
@@ -159,9 +180,16 @@ const form = {
   },
   /** Checkboxes send a value only when checked. */
   boolean: (data: FormData, name: string): boolean => data.get(name) !== null,
+  /**
+   * A \`datetime-local\` value read as UTC, the zone the form shows it in, so
+   * a save does not shift it by the server's offset.
+   */
   date: (data: FormData, name: string): Date | undefined => {
     const value = text(data, name)
-    return value === undefined ? undefined : new Date(value)
+    if (value === undefined) {
+      return undefined
+    }
+    return new Date(/(?:[zZ]|[+-]\\d{2}:\\d{2})$/.test(value) ? value : \`\${value}Z\`)
   },
   /** Parsed JSON, or the raw text when it does not parse so the validator reports it. */
   json: (data: FormData, name: string): unknown => {
@@ -252,7 +280,7 @@ const createActionBlock = (options: ModelActionOptions): string => {
     ...inputLines(model),
     `  const parsed = insert${name}Schema.safeParse(input)`,
     "  if (!parsed.success) {",
-    "    return invalid(parsed.error.issues)",
+    "    return invalid(parsed.error.issues, formData)",
     "  }",
     `  await create${name}Record(parsed.data)`,
     `  revalidatePath("${segment.staticUrl}")`,
@@ -276,7 +304,7 @@ const updateActionBlock = (options: ModelActionOptions): string => {
     ...inputLines(model),
     `  const parsed = update${name}Schema.safeParse(input)`,
     "  if (!parsed.success) {",
-    "    return invalid(parsed.error.issues)",
+    "    return invalid(parsed.error.issues, formData)",
     "  }",
     `  await update${name}Record(id, parsed.data)`,
     `  revalidatePath("${segment.staticUrl}")`,
@@ -328,7 +356,6 @@ export {
   ENV_ANCHORS,
   envTemplate,
   genericActionBlock,
-  matcherPrefix,
   PROXY_ANCHORS,
   proxyInterceptorBlock,
   proxyMatcherBlock,

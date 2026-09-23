@@ -38,6 +38,7 @@ import {
 } from "../lib/creds.js"
 import { appEnv } from "../lib/env.js"
 import { packageBin } from "../lib/packages.js"
+import { weeCommand } from "../templates/ops.js"
 
 const envArg = {
   env: {
@@ -81,6 +82,7 @@ const writeCredentials = async (
 }
 
 const credsInit = defineWeeCommand({
+  dryRun: true,
   meta: {
     name: "creds:init",
     description: "Create the age key pair and the first credentials file",
@@ -158,6 +160,7 @@ const currentText = async (ctx: Context, env: string): Promise<string> => {
 }
 
 const credsEdit = defineWeeCommand({
+  dryRun: true,
   meta: {
     name: "creds:edit",
     description: "Decrypt, open in $EDITOR, re-encrypt on close",
@@ -199,6 +202,7 @@ const credsEdit = defineWeeCommand({
 })
 
 const credsShow = defineWeeCommand({
+  dryRun: true,
   meta: { name: "creds:show", description: "Print the decrypted values" },
   args: envArg,
   run: async (ctx, args) => {
@@ -210,6 +214,7 @@ const credsShow = defineWeeCommand({
 })
 
 const credsFetch = defineWeeCommand({
+  dryRun: true,
   meta: {
     name: "creds:fetch",
     description: "Print one decrypted value, for scripts",
@@ -240,26 +245,14 @@ const credsFetch = defineWeeCommand({
   },
 })
 
-/** `<pm> exec`-style prefix that runs `wee` from the repo's dependencies. */
-const execPrefix = (ctx: Context): string => {
-  switch (ctx.repo.packageManager) {
-    case "pnpm":
-      return "pnpm exec"
-    case "yarn":
-      return "yarn"
-    case "bun":
-      return "bunx"
-    default:
-      return "npx"
-  }
-}
-
 const GIT_ATTRIBUTE = "config/credentials/*.env.enc diff=wee_credentials"
 const TEXTCONV_KEY = "diff.wee_credentials.textconv"
 
 const enroll = async (ctx: Context): Promise<CommandResult> => {
   const added = appendLineOnce(ctx, ".gitattributes", GIT_ATTRIBUTE)
-  const textconv = `${execPrefix(ctx)} wee creds:diff`
+  // git runs textconv at the repo root, where a monorepo needs the app named.
+  const app = ctx.target.name === "root" ? "" : ` --app ${ctx.target.name}`
+  const textconv = `${weeCommand(ctx.repo.packageManager)} creds:diff${app}`
   if (!ctx.flags.dryRun) {
     const result = await x("git", ["config", TEXTCONV_KEY, textconv], {
       nodeOptions: { cwd: ctx.target.path },
@@ -296,6 +289,7 @@ const printDecrypted = async (ctx: Context, rawPath: string): Promise<void> => {
 }
 
 const credsDiff = defineWeeCommand({
+  dryRun: true,
   meta: {
     name: "creds:diff",
     description: "Decrypt a file for git diff, or --enroll the textconv driver",
@@ -375,6 +369,7 @@ const pushToVercel = async (
 }
 
 const credsSync = defineWeeCommand({
+  dryRun: true,
   meta: {
     name: "creds:sync",
     description: "Push the decrypted values to a hosting target",

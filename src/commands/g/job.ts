@@ -2,9 +2,11 @@
  * `wee g job <Name>`: a plain job function in `jobs/<name>.ts` with a test,
  * registered in `jobs/index.ts`.
  */
+import { createOrReplace } from "../../core/changes.js"
 import { defineWeeCommand } from "../../core/command.js"
 import { assertAppRouter } from "../../core/context.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
+import { rowsOf } from "../../core/output.js"
 import {
   JOBS_ANCHORS,
   jobNames,
@@ -12,8 +14,8 @@ import {
   jobTemplate,
   jobTestTemplate,
 } from "../../templates/jobs.js"
-import { assertBlockAbsent, create, srcPath } from "./paths.js"
-import { installRows, rowsOf, skipInstallArg } from "./setup.js"
+import { assertBlockAbsent, srcPath } from "./paths.js"
+import { installRows, skipInstallArg } from "./setup.js"
 
 const jobGenerator = defineGenerator({
   name: "job",
@@ -36,8 +38,8 @@ const jobGenerator = defineGenerator({
     assertBlockAbsent(ctx, index, marker)
     return [
       { kind: "ensure", path: index, content: jobsIndexTemplate() },
-      create(ctx, file, jobTemplate(names)),
-      create(
+      createOrReplace(ctx, file, jobTemplate(names)),
+      createOrReplace(
         ctx,
         srcPath(ctx, "jobs", `${names.file}.test.ts`),
         jobTestTemplate(names)
@@ -61,6 +63,7 @@ const jobGenerator = defineGenerator({
 })
 
 const job = defineWeeCommand({
+  dryRun: true,
   meta: { name: "job", description: jobGenerator.description },
   args: jobGenerator.args,
   run: async (ctx, args) => {
@@ -75,4 +78,4 @@ const job = defineWeeCommand({
   },
 })
 
-export { job, jobGenerator }
+export { job }

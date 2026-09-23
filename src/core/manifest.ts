@@ -6,7 +6,6 @@ import {
   existsSync,
   mkdirSync,
   readdirSync,
-  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs"
@@ -17,6 +16,7 @@ import type { AppliedChange } from "./changes.js"
 import { appliedChangeSchema } from "./changes.js"
 import { CONFIG_DIR } from "./config.js"
 import { WeeError } from "./errors.js"
+import { readJsonFile } from "./json.js"
 
 const MANIFEST_DIR = join(CONFIG_DIR, "manifests")
 
@@ -43,6 +43,50 @@ const manifestPath = (
   return join(targetPath, MANIFEST_DIR, `${manifestId(generator, name)}.json`)
 }
 
+/** Changes to the same file (or the same injected block) share a key. */
+const changeKey = (change: AppliedChange): string => {
+  if (change.kind === "inject") {
+    return `inject:${change.path}:${change.marker ?? ""}`
+  }
+  return change.kind === "ensure"
+    ? `ensure:${change.path}`
+    : `file:${change.path}`
+}
+
+/**
+ * Folds a re-run (`--force`) into the earlier manifest. The earlier entry
+ * keeps what the file was before wee touched it: a file the first run
+ * created stays a create, and the first `previous` content wins, so
+ * `destroy` still returns the app to the state before the first run.
+ */
+const mergeChanges = (
+  earlier: AppliedChange[],
+  later: AppliedChange[]
+): AppliedChange[] => {
+  const merged = new Map(earlier.map((change) => [changeKey(change), change]))
+  for (const change of later) {
+    const first = merged.get(changeKey(change))
+    if (first === undefined) {
+      merged.set(changeKey(change), change)
+    } else if (first.previous !== undefined) {
+      merged.set(changeKey(change), {
+        ...change,
+        kind: change.kind === "delete" ? "delete" : "modify",
+        previous: first.previous,
+      })
+    } else if (first.kind === "create") {
+      const { previous: _, ...rest } = change
+      merged.set(changeKey(change), {
+        ...rest,
+        kind: change.kind === "delete" ? "delete" : "create",
+      })
+    } else {
+      merged.set(changeKey(change), change)
+    }
+  }
+  return [...merged.values()]
+}
+
 interface WriteManifestOptions {
   targetPath: string
   generator: string
@@ -66,13 +110,16 @@ const writeManifest = (
     dryRun,
   } = options
   const file = manifestPath(targetPath, generator, name)
+  const earlier = existsSync(file)
+    ? readManifest(targetPath, generator, name).manifest.changes
+    : []
   const manifest: Manifest = {
     generator,
     name,
     createdAt: new Date().toISOString(),
     cliVersion,
     args,
-    changes,
+    changes: mergeChanges(earlier, changes),
   }
   if (!dryRun) {
     mkdirSync(dirname(file), { recursive: true })
@@ -93,16 +140,10 @@ const readManifest = (
       `No manifest for ${generator} ${name} at ${file}`
     )
   }
-  const result = manifestSchema.safeParse(
-    JSON.parse(readFileSync(file, "utf8"))
-  )
-  if (!result.success) {
-    throw new WeeError(
-      "manifest-invalid",
-      `Invalid manifest ${file}: ${z.prettifyError(result.error)}`
-    )
+  return {
+    path: file,
+    manifest: readJsonFile(file, manifestSchema, "manifest-invalid"),
   }
-  return { path: file, manifest: result.data }
 }
 
 const deleteManifest = (
@@ -133,13 +174,11 @@ const isPathSharedWithOtherManifest = (
     .filter((id) => id !== excludeId)
     .some((id) => {
       const file = join(targetPath, MANIFEST_DIR, `${id}.json`)
-      const parsed = manifestSchema.safeParse(
-        JSON.parse(readFileSync(file, "utf8"))
-      )
-      return (
-        parsed.success &&
-        parsed.data.changes.some((change) => change.path === path)
-      )
+      return readJsonFile(
+        file,
+        manifestSchema,
+        "manifest-invalid"
+      ).changes.some((change) => change.path === path)
     })
 }
 
@@ -147,8 +186,6 @@ export type { Manifest }
 export {
   deleteManifest,
   isPathSharedWithOtherManifest,
-  listManifests,
-  MANIFEST_DIR,
   manifestId,
   manifestPath,
   readManifest,

@@ -8,13 +8,14 @@
 import { join } from "node:path"
 import type { ModelSpec } from "../../core/adapters.js"
 import type { FileChange } from "../../core/changes.js"
-import { readIfExists } from "../../core/changes.js"
+import { createOrReplace, readIfExists } from "../../core/changes.js"
 import type { CommandResult } from "../../core/command.js"
 import { defineWeeCommand } from "../../core/command.js"
 import type { Context } from "../../core/context.js"
 import { assertAppRouter } from "../../core/context.js"
 import { WeeError } from "../../core/errors.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
+import { rowsOf } from "../../core/output.js"
 import { buildModelSpec, parseAttributes } from "../../lib/attributes.js"
 import { kebabCase, plural } from "../../lib/inflect.js"
 import type { Segment } from "../../lib/segment.js"
@@ -40,12 +41,11 @@ import { formChanges, formPath } from "./form.js"
 import { modelChanges } from "./model.js"
 import {
   assertBlockAbsent,
-  create,
   relativeImport,
   segmentDir,
   srcPath,
 } from "./paths.js"
-import { installRows, rowsOf } from "./setup.js"
+import { installRows } from "./setup.js"
 import { attributeArgs, nameArg } from "./shared.js"
 
 interface PageOptions {
@@ -82,14 +82,18 @@ const pageChanges = (
     validator: relativeImport(page, files.validator),
     display: relativeImport(page, files.display),
   }
-  const changes = [create(ctx, page, PAGE_TEMPLATES[kind]({ model, imports }))]
+  const changes = [
+    createOrReplace(ctx, page, PAGE_TEMPLATES[kind]({ model, imports })),
+  ]
   if (!skipLoading) {
     changes.push(
-      create(ctx, join(dir, "loading.tsx"), loadingTemplate(segment))
+      createOrReplace(ctx, join(dir, "loading.tsx"), loadingTemplate(segment))
     )
   }
   if (!skipError) {
-    changes.push(create(ctx, join(dir, "error.tsx"), errorTemplate(segment)))
+    changes.push(
+      createOrReplace(ctx, join(dir, "error.tsx"), errorTemplate(segment))
+    )
   }
   return changes
 }
@@ -132,12 +136,12 @@ const apiChanges = (
     validator: relativeImport(file, files.validator),
   })
   return [
-    create(
+    createOrReplace(
       ctx,
       collectionFile,
       apiCollectionTemplate({ model, imports: imports(collectionFile) })
     ),
-    create(
+    createOrReplace(
       ctx,
       memberFile,
       apiMemberTemplate({ model, imports: imports(memberFile) })
@@ -258,7 +262,7 @@ const resourceGenerator = defineGenerator({
         content: navLinkBlock(model),
         after: NAV_ANCHOR,
       },
-      create(ctx, join("e2e", `${base}.spec.ts`), e2eTemplate(model))
+      createOrReplace(ctx, join("e2e", `${base}.spec.ts`), e2eTemplate(model))
     )
     return dedupeEnsures(changes)
   },
@@ -295,6 +299,7 @@ const followUpRows = async (
 }
 
 const resource = defineWeeCommand({
+  dryRun: true,
   meta: { name: "resource", description: resourceGenerator.description },
   args: resourceGenerator.args,
   run: async (ctx, args) => {
@@ -313,4 +318,4 @@ const resource = defineWeeCommand({
   },
 })
 
-export { resource, resourceGenerator }
+export { resource }

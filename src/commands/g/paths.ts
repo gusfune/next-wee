@@ -6,7 +6,7 @@
 import { existsSync } from "node:fs"
 import { dirname, join, relative } from "node:path"
 import type { FileChange } from "../../core/changes.js"
-import { createOrReplace, readIfExists } from "../../core/changes.js"
+import { readIfExists } from "../../core/changes.js"
 import { loadConfig } from "../../core/config.js"
 import type { Context } from "../../core/context.js"
 import { sourceDir } from "../../core/context.js"
@@ -28,14 +28,6 @@ const relativeImport = (fromFile: string, toFile: string): string => {
   const spec = relative(dirname(fromFile), toFile).replace(/\.tsx?$/, "")
   return spec.startsWith(".") ? spec : `./${spec}`
 }
-
-const create = (ctx: Context, path: string, content: string): FileChange =>
-  createOrReplace({
-    root: ctx.target.path,
-    force: ctx.flags.force,
-    path,
-    content,
-  })
 
 /** Throws `block-exists` when the marker is already in the file, unless `--force`. */
 const assertBlockAbsent = (
@@ -107,7 +99,6 @@ const fileName = (name: string): string => kebabCase(name)
 
 export {
   assertBlockAbsent,
-  create,
   exists,
   existsOrPending,
   fileName,

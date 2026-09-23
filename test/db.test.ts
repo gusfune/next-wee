@@ -346,6 +346,14 @@ describe("phase 1 on sqlite", () => {
     expect(read("src/services/posts.ts")).toContain("const listPosts")
   })
 
+  it("db:reset --dry-run skips and keeps the database", async () => {
+    const before = await tables()
+    const { out, exit } = await run(dbReset, ["--dry-run"])
+    expect(exit).toBe(0)
+    expect(JSON.parse(out)).toEqual({ action: "skip", path: "db:reset" })
+    expect(await tables()).toEqual(before)
+  })
+
   it("db:reset drops and rebuilds the database, db:prepare is idempotent", async () => {
     expect((await run(dbReset, [])).exit).toBe(0)
     expect(await tables()).toEqual(["__drizzle_migrations", "posts"])

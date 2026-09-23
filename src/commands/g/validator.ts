@@ -19,10 +19,11 @@ const validatorGenerator = defineGenerator({
 })
 
 const validator = defineWeeCommand({
+  dryRun: true,
   meta: { name: "validator", description: validatorGenerator.description },
   args: validatorGenerator.args,
   run: (ctx, args) =>
     runGenerator({ ctx, generator: validatorGenerator, args }),
 })
 
-export { validator, validatorGenerator }
+export { validator }

@@ -43,10 +43,11 @@ const migrationGenerator = defineGenerator({
 })
 
 const migration = defineWeeCommand({
+  dryRun: true,
   meta: { name: "migration", description: migrationGenerator.description },
   args: migrationGenerator.args,
   run: (ctx, args) =>
     runGenerator({ ctx, generator: migrationGenerator, args }),
 })
 
-export { migration, migrationGenerator }
+export { migration }

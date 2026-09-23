@@ -1,7 +1,7 @@
 {
   "name": "next-wee",
-  "version": "0.2.0",
-  "description": "Rails-grade command tooling for Next.js App Router apps",
+  "version": "0.3.0",
+  "description": "Generators, migrations and one task runner for Next.js App Router apps",
   "type": "module",
   "license": "MIT",
   "author": "Gus Fune",
@@ -26,6 +26,10 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "engines": {
     "node": ">=22"
   },
@@ -34,7 +38,7 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "prepublishOnly": "bun run lint && bun run typecheck && bun run build",
+    "prepublishOnly": "bun run lint && bun run typecheck && bun run test && bun run build",
     "dev": "tsdown --watch",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",

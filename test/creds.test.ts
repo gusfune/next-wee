@@ -274,6 +274,15 @@ describe("creds:diff", () => {
   })
 })
 
+describe("environment names", () => {
+  it("rejects a name that is not a plain file name", async () => {
+    await init()
+    const { exit, err } = await run(credsShow, ["--env=../x"])
+    expect(exit).toBe(1)
+    expect(err).toContain("invalid-env")
+  })
+})
+
 describe("creds:sync", () => {
   it("rejects unknown targets and environments", async () => {
     await init()

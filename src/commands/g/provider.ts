@@ -1,10 +1,11 @@
 /** `wee g provider <Name>`: context provider, `use<Name>` hook and test. */
+import { createOrReplace } from "../../core/changes.js"
 import { defineWeeCommand } from "../../core/command.js"
 import { assertAppRouter } from "../../core/context.js"
 import { defineGenerator, runGenerator } from "../../core/generator.js"
 import { kebabCase, pascalCase } from "../../lib/inflect.js"
 import { providerTemplate, providerTestTemplate } from "../../templates/ui.js"
-import { create, srcPath } from "./paths.js"
+import { srcPath } from "./paths.js"
 
 /** `Theme` for `Theme`, `theme` or `ThemeProvider`. */
 const providerName = (raw: string): string =>
@@ -27,16 +28,21 @@ const providerGenerator = defineGenerator({
     const dir = srcPath(ctx, "components", "providers")
     const file = `${kebabCase(name)}-provider`
     return [
-      create(ctx, `${dir}/${file}.tsx`, providerTemplate(name)),
-      create(ctx, `${dir}/${file}.test.tsx`, providerTestTemplate(name)),
+      createOrReplace(ctx, `${dir}/${file}.tsx`, providerTemplate(name)),
+      createOrReplace(
+        ctx,
+        `${dir}/${file}.test.tsx`,
+        providerTestTemplate(name)
+      ),
     ]
   },
 })
 
 const provider = defineWeeCommand({
+  dryRun: true,
   meta: { name: "provider", description: providerGenerator.description },
   args: providerGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: providerGenerator, args }),
 })
 
-export { provider, providerGenerator }
+export { provider }

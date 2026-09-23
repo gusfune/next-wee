@@ -69,6 +69,7 @@ const authProviderGenerator = defineGenerator({
 })
 
 const authProvider = defineWeeCommand({
+  dryRun: true,
   meta: {
     name: "auth:provider",
     description: authProviderGenerator.description,
@@ -78,4 +79,4 @@ const authProvider = defineWeeCommand({
     runGenerator({ ctx, generator: authProviderGenerator, args }),
 })
 
-export { authProvider, authProviderGenerator }
+export { authProvider }

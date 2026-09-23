@@ -158,4 +158,4 @@ const ci = defineWeeCommand({
   },
 })
 
-export { CI_CONFIG, ci, loadSteps }
+export { ci }
