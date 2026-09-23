@@ -173,6 +173,36 @@ describe("destroy", () => {
   })
 })
 
+describe("destroy after re-runs and deletes", () => {
+  const record = (changes: Parameters<typeof applyChanges>[0]["changes"]) =>
+    writeManifest({
+      targetPath: app,
+      generator: "model",
+      name: "Post",
+      cliVersion: "test",
+      changes: applyChanges({ root: app, dryRun: false, changes }),
+      dryRun: false,
+    })
+
+  it("a --force re-run keeps the first run's create, so destroy deletes", async () => {
+    record([{ kind: "create", path: "src/post.ts", content: "one\n" }])
+    // A forced re-run replaces the file it created with a modify.
+    record([{ kind: "modify", path: "src/post.ts", content: "two\n" }])
+    const { exit } = await run(destroy, ["model", "Post"])
+    expect(exit).toBe(0)
+    expect(existsSync(join(app, "src/post.ts"))).toBe(false)
+  })
+
+  it("restores a file the run deleted", async () => {
+    writeFileSync(join(app, "src/old.ts"), "old\n")
+    record([{ kind: "delete", path: "src/old.ts" }])
+    expect(existsSync(join(app, "src/old.ts"))).toBe(false)
+    const { exit } = await run(destroy, ["model", "Post"])
+    expect(exit).toBe(0)
+    expect(readFileSync(join(app, "src/old.ts"), "utf8")).toBe("old\n")
+  })
+})
+
 describe("applyChanges", () => {
   it("writes nothing when a later change fails its check", () => {
     const apply = () =>

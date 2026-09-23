@@ -140,7 +140,13 @@ const reverseChange = (options: ReverseOptions): string => {
       return `remove:${change.marker}`
     }
     case "delete": {
-      return "skip"
+      if (change.previous === undefined) {
+        return "skip"
+      }
+      if (!ctx.flags.dryRun) {
+        writeFile(file, change.previous)
+      }
+      return "restore"
     }
   }
 }
