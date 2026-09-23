@@ -17,6 +17,7 @@ export default defineConfig({
   target: "node22",
   outDir: "dist",
   clean: true,
-  dts: true,
+  // Types only for the public entry; the others would emit empty .d.ts files.
+  dts: { entry: "src/index.ts" },
   fixedExtension: false,
 })
