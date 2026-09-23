@@ -38,6 +38,7 @@ import {
 } from "../lib/creds.js"
 import { appEnv } from "../lib/env.js"
 import { packageBin } from "../lib/packages.js"
+import { weeCommand } from "../templates/ops.js"
 
 const envArg = {
   env: {
@@ -244,20 +245,6 @@ const credsFetch = defineWeeCommand({
   },
 })
 
-/** `<pm> exec`-style prefix that runs `wee` from the repo's dependencies. */
-const execPrefix = (ctx: Context): string => {
-  switch (ctx.repo.packageManager) {
-    case "pnpm":
-      return "pnpm exec"
-    case "yarn":
-      return "yarn"
-    case "bun":
-      return "bunx"
-    default:
-      return "npx"
-  }
-}
-
 const GIT_ATTRIBUTE = "config/credentials/*.env.enc diff=wee_credentials"
 const TEXTCONV_KEY = "diff.wee_credentials.textconv"
 
@@ -265,7 +252,7 @@ const enroll = async (ctx: Context): Promise<CommandResult> => {
   const added = appendLineOnce(ctx, ".gitattributes", GIT_ATTRIBUTE)
   // git runs textconv at the repo root, where a monorepo needs the app named.
   const app = ctx.target.name === "root" ? "" : ` --app ${ctx.target.name}`
-  const textconv = `${execPrefix(ctx)} wee creds:diff${app}`
+  const textconv = `${weeCommand(ctx.repo.packageManager)} creds:diff${app}`
   if (!ctx.flags.dryRun) {
     const result = await x("git", ["config", TEXTCONV_KEY, textconv], {
       nodeOptions: { cwd: ctx.target.path },
