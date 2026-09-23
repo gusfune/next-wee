@@ -235,6 +235,15 @@ describe("applyChanges", () => {
     )
   })
 
+  it("finds and replaces blocks in a CRLF file", async () => {
+    const { injectBlock, removeBlock } = await import("../src/core/inject.js")
+    const source = "a\r\n// wee:begin x\r\nold\r\n// wee:end x\r\nb\r\n"
+    const next = injectBlock({ source, path: "q.ts", id: "x", content: "new" })
+    expect(next).toContain("new")
+    expect(next).not.toContain("old")
+    expect(removeBlock(source, "q.ts", "x")).toBe("a\r\nb\r\n")
+  })
+
   it("rejects paths that leave the app", async () => {
     const { fileChangeSchema } = await import("../src/core/changes.js")
     for (const path of ["../outside.ts", "src/../../x.ts", "/etc/passwd"]) {
