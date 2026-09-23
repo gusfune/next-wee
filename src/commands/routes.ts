@@ -19,6 +19,7 @@ const compileGrep = (pattern: string): RegExp => {
 }
 
 const routes = defineWeeCommand({
+  dryRun: true,
   meta: {
     name: "routes",
     description: "List routes with segment kinds, file type and rendering mode",

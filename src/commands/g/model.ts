@@ -63,6 +63,7 @@ const modelGenerator = defineGenerator({
 })
 
 const model = defineWeeCommand({
+  dryRun: true,
   meta: { name: "model", description: modelGenerator.description },
   args: modelGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: modelGenerator, args }),

@@ -27,6 +27,7 @@ const layoutGenerator = defineGenerator({
 })
 
 const layout = defineWeeCommand({
+  dryRun: true,
   meta: { name: "layout", description: layoutGenerator.description },
   args: layoutGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: layoutGenerator, args }),

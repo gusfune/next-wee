@@ -42,6 +42,7 @@ const taskGenerator = defineGenerator({
 })
 
 const task = defineWeeCommand({
+  dryRun: true,
   meta: { name: "task", description: taskGenerator.description },
   args: taskGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: taskGenerator, args }),

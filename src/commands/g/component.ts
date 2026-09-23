@@ -47,6 +47,7 @@ const componentGenerator = defineGenerator({
 })
 
 const component = defineWeeCommand({
+  dryRun: true,
   meta: { name: "component", description: componentGenerator.description },
   args: componentGenerator.args,
   run: (ctx, args) =>

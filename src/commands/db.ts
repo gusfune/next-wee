@@ -179,6 +179,7 @@ const runDbInit = async (
 }
 
 const dbInit = defineWeeCommand({
+  dryRun: true,
   meta: { name: "db:init", description: dbInitGenerator.description },
   args: dbInitGenerator.args,
   run: runDbInit,
@@ -243,6 +244,7 @@ const dbRollback = defineWeeCommand({
 })
 
 const dbStatus = defineWeeCommand({
+  dryRun: true,
   meta: {
     name: "db:status",
     description: "List migrations and whether they are applied",

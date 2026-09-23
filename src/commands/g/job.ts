@@ -61,6 +61,7 @@ const jobGenerator = defineGenerator({
 })
 
 const job = defineWeeCommand({
+  dryRun: true,
   meta: { name: "job", description: jobGenerator.description },
   args: jobGenerator.args,
   run: async (ctx, args) => {

@@ -69,6 +69,7 @@ const authProviderGenerator = defineGenerator({
 })
 
 const authProvider = defineWeeCommand({
+  dryRun: true,
   meta: {
     name: "auth:provider",
     description: authProviderGenerator.description,

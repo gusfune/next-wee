@@ -295,6 +295,7 @@ const followUpRows = async (
 }
 
 const resource = defineWeeCommand({
+  dryRun: true,
   meta: { name: "resource", description: resourceGenerator.description },
   args: resourceGenerator.args,
   run: async (ctx, args) => {

@@ -49,6 +49,7 @@ const typeGenerator = defineGenerator({
 })
 
 const type = defineWeeCommand({
+  dryRun: true,
   meta: { name: "type", description: typeGenerator.description },
   args: typeGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: typeGenerator, args }),

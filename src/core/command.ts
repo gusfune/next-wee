@@ -45,6 +45,12 @@ interface CommandResult {
 interface WeeCommandDef<T extends ArgsDef> {
   meta: CommandMeta
   args?: T
+  /**
+   * The command honours `--dry-run` itself or has no side effects. Without
+   * it, `--dry-run` reports a skip and the body never runs, so a new command
+   * cannot drop a database by forgetting to read the flag.
+   */
+  dryRun?: true
   run: (
     ctx: Context,
     args: CommandArgs<T>,
@@ -72,6 +78,14 @@ const defineWeeCommand = <T extends ArgsDef>(
       const flags = readGlobalFlags(parsed)
       try {
         const ctx = await buildContext({ cwd: process.cwd(), flags })
+        if (flags.dryRun && def.dryRun !== true) {
+          emit({
+            json: flags.json,
+            data: { action: "skip", path: def.meta.name ?? "" },
+            title: `dry-run: ${def.meta.name ?? ""} has side effects; nothing ran`,
+          })
+          return
+        }
         const result = await def.run(ctx, parsed, rawArgs)
         if (result !== undefined) {
           emit({

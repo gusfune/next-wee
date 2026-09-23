@@ -206,6 +206,7 @@ const genericBlock = (options: BlockOptions): Block => {
 }
 
 const action = defineWeeCommand({
+  dryRun: true,
   meta: { name: "action", description: actionGenerator.description },
   args: actionGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: actionGenerator, args }),

@@ -54,6 +54,7 @@ const metadataGenerator = defineGenerator({
 })
 
 const metadata = defineWeeCommand({
+  dryRun: true,
   meta: { name: "metadata", description: metadataGenerator.description },
   args: metadataGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: metadataGenerator, args }),

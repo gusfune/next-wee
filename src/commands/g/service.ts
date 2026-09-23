@@ -30,6 +30,7 @@ const serviceGenerator = defineGenerator({
 })
 
 const service = defineWeeCommand({
+  dryRun: true,
   meta: { name: "service", description: serviceGenerator.description },
   args: serviceGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: serviceGenerator, args }),

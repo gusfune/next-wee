@@ -35,6 +35,7 @@ const hookGenerator = defineGenerator({
 })
 
 const hook = defineWeeCommand({
+  dryRun: true,
   meta: { name: "hook", description: hookGenerator.description },
   args: hookGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: hookGenerator, args }),

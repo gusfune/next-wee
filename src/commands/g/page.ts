@@ -61,6 +61,7 @@ const pageGenerator = defineGenerator({
 })
 
 const page = defineWeeCommand({
+  dryRun: true,
   meta: { name: "page", description: pageGenerator.description },
   args: pageGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: pageGenerator, args }),

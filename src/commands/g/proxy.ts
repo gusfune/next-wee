@@ -79,6 +79,7 @@ const proxyGenerator = defineGenerator({
 })
 
 const proxy = defineWeeCommand({
+  dryRun: true,
   meta: { name: "proxy", description: proxyGenerator.description },
   args: proxyGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: proxyGenerator, args }),

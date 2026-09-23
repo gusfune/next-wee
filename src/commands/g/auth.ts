@@ -175,6 +175,7 @@ const runAuth = async (
 }
 
 const auth = defineWeeCommand({
+  dryRun: true,
   meta: { name: "auth", description: authGenerator.description },
   args: authGenerator.args,
   run: runAuth,

@@ -68,6 +68,7 @@ const handlerGenerator = defineGenerator({
 })
 
 const handler = defineWeeCommand({
+  dryRun: true,
   meta: { name: "handler", description: handlerGenerator.description },
   args: handlerGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: handlerGenerator, args }),

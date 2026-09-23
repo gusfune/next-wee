@@ -141,6 +141,7 @@ const reverseChange = (options: ReverseOptions): string => {
 }
 
 const destroy = defineWeeCommand({
+  dryRun: true,
   meta: {
     name: "destroy",
     description: "Reverse a generator run from its manifest",

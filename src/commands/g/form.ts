@@ -112,6 +112,7 @@ const formGenerator = defineGenerator({
 })
 
 const form = defineWeeCommand({
+  dryRun: true,
   meta: { name: "form", description: formGenerator.description },
   args: formGenerator.args,
   run: (ctx, args) => runGenerator({ ctx, generator: formGenerator, args }),

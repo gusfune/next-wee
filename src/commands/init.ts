@@ -44,6 +44,7 @@ const initGenerator = defineGenerator({
 })
 
 const init = defineWeeCommand({
+  dryRun: true,
   meta: { name: "init", description: initGenerator.description },
   run: async (ctx, args) =>
     runGenerator({ ctx, generator: initGenerator, args }),

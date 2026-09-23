@@ -60,6 +60,7 @@ const emailGenerator = defineGenerator({
 })
 
 const email = defineWeeCommand({
+  dryRun: true,
   meta: { name: "email", description: emailGenerator.description },
   args: emailGenerator.args,
   run: async (ctx, args) => {
