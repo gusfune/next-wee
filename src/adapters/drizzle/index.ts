@@ -32,13 +32,13 @@ import {
   createOrReplace,
   databaseName,
   dbDirs,
+  emitValidator,
   hasSeeds,
   provider,
   runSeed,
   sqlShell,
   withDriver,
 } from "../shared.js"
-import { validatorTemplate, validatorTestTemplate } from "../validator.js"
 import {
   appliedMigrations,
   forgetMigration,
@@ -151,19 +151,6 @@ const emitModel = (ctx: Context, model: ModelSpec): FileChange[] => {
       marker: `model-${kebabCase(model.name)}`,
       content: `export * from "./${file.replace(/\.ts$/, "")}"`,
     },
-  ]
-}
-
-const emitValidator = (ctx: Context, model: ModelSpec): FileChange[] => {
-  const dir = join(sourceDir(ctx), "lib/validators")
-  const file = kebabCase(model.name)
-  return [
-    createOrReplace(ctx, join(dir, `${file}.ts`), validatorTemplate(model)),
-    createOrReplace(
-      ctx,
-      join(dir, `${file}.test.ts`),
-      validatorTestTemplate(model)
-    ),
   ]
 }
 

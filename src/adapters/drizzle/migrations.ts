@@ -5,14 +5,7 @@
  * writes it, destroy reverses it. The down SQL sits beside the up SQL as
  * `<tag>.down.sql` and is run by `db:rollback`.
  */
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-} from "node:fs"
+import { cpSync, existsSync, mkdirSync, readFileSync } from "node:fs"
 import { join, relative } from "node:path"
 import type {
   Attribute,
@@ -21,12 +14,11 @@ import type {
 } from "../../core/adapters.js"
 import type { FileChange } from "../../core/changes.js"
 import { applyChanges, readIfExists } from "../../core/changes.js"
-import { CONFIG_DIR } from "../../core/config.js"
 import type { Context } from "../../core/context.js"
 import { WeeError } from "../../core/errors.js"
 import { runBin } from "../../lib/packages.js"
 import { quoteIdentifier } from "../driver.js"
-import { dbDirs } from "../shared.js"
+import { dbDirs, withScratch } from "../shared.js"
 import { enumName } from "../validator.js"
 import { columnDefinitionSql, KIT_DIALECT } from "./columns.js"
 
@@ -144,11 +136,7 @@ const generateMigration = async (
   const { ctx, provider, name, change, pending } = options
   const target = ctx.target.path
   const { schemaDir, migrationsDir } = dbDirs(ctx)
-  const configDir = join(target, CONFIG_DIR)
-  const hadConfigDir = existsSync(configDir)
-  mkdirSync(configDir, { recursive: true })
-  const scratch = mkdtempSync(join(configDir, "wee-"))
-  try {
+  return withScratch(ctx, async (scratch) => {
     const scratchSchema = join(scratch, "schema")
     const scratchOut = join(scratch, "out")
     if (existsSync(join(target, schemaDir))) {
@@ -229,12 +217,7 @@ const generateMigration = async (
         content: readFileSync(join(scratchOut, "meta/_journal.json"), "utf8"),
       },
     ]
-  } finally {
-    rmSync(scratch, { recursive: true, force: true })
-    if (!hadConfigDir) {
-      rmSync(configDir, { recursive: true, force: true })
-    }
-  }
+  })
 }
 
 /** Splits SQL on the drizzle breakpoint marker and drops comment-only lines. */

@@ -4,24 +4,33 @@
  * `db:push` and `db:reset`, and the SQL shell of `db:console`. Adapters
  * add their own files and tool calls on top.
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs"
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+} from "node:fs"
 import { join } from "node:path"
 import { x } from "tinyexec"
-import type { DbProvider, SeedOptions } from "../core/adapters.js"
+import type { DbProvider, ModelSpec, SeedOptions } from "../core/adapters.js"
 import type { FileChange } from "../core/changes.js"
 import {
   createOrReplace as createOrReplaceChange,
   readIfExists,
 } from "../core/changes.js"
 import type { AppConfig } from "../core/config.js"
-import { configChange } from "../core/config.js"
+import { CONFIG_DIR, configChange } from "../core/config.js"
 import type { Context } from "../core/context.js"
 import { appSlug, sourceDir } from "../core/context.js"
 import { WeeError } from "../core/errors.js"
 import { appEnv, databaseUrl, loadTargetEnv } from "../lib/env.js"
+import { kebabCase } from "../lib/inflect.js"
 import { missingPackages, runScript } from "../lib/packages.js"
 import type { SqlDriver } from "./driver.js"
 import { databaseTarget, openDriver } from "./driver.js"
+import { validatorTemplate, validatorTestTemplate } from "./validator.js"
 
 const DB_SCRIPTS = [
   "db:generate",
@@ -261,6 +270,43 @@ const sqlShell = async (ctx: Context): Promise<void> => {
   }
 }
 
+/**
+ * Runs `fn` with a scratch folder under `.app/` that is removed afterwards.
+ * It sits inside the app so drizzle-kit resolves the schema's imports from
+ * the app's node_modules. `.app/` itself goes only when this created it.
+ */
+const withScratch = async <T>(
+  ctx: Context,
+  fn: (scratch: string) => Promise<T>
+): Promise<T> => {
+  const configDir = join(ctx.target.path, CONFIG_DIR)
+  const hadConfigDir = existsSync(configDir)
+  mkdirSync(configDir, { recursive: true })
+  const scratch = mkdtempSync(join(configDir, "wee-"))
+  try {
+    return await fn(scratch)
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+    if (!hadConfigDir) {
+      rmSync(configDir, { recursive: true, force: true })
+    }
+  }
+}
+
+/** Validator and its test for a model. Both adapters emit the same files. */
+const emitValidator = (ctx: Context, model: ModelSpec): FileChange[] => {
+  const dir = join(sourceDir(ctx), "lib/validators")
+  const file = kebabCase(model.name)
+  return [
+    createOrReplace(ctx, join(dir, `${file}.ts`), validatorTemplate(model)),
+    createOrReplace(
+      ctx,
+      join(dir, `${file}.test.ts`),
+      validatorTestTemplate(model)
+    ),
+  ]
+}
+
 export type { DbDirs }
 export {
   assertPushAllowed,
@@ -270,9 +316,11 @@ export {
   createOrReplace,
   databaseName,
   dbDirs,
+  emitValidator,
   hasSeeds,
   provider,
   runSeed,
   sqlShell,
   withDriver,
+  withScratch,
 }

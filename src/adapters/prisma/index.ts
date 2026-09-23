@@ -37,13 +37,13 @@ import {
   createOrReplace,
   databaseName,
   dbDirs,
+  emitValidator,
   hasSeeds,
   provider,
   runSeed,
   sqlShell,
   withDriver,
 } from "../shared.js"
-import { validatorTemplate, validatorTestTemplate } from "../validator.js"
 import { referencedModel } from "./fields.js"
 import {
   diffSql,
@@ -223,19 +223,6 @@ const emitModel = (
   },
   ...backRelations(ctx, model, model.attributes, pending),
 ]
-
-const emitValidator = (ctx: Context, model: ModelSpec): FileChange[] => {
-  const dir = join(sourceDir(ctx), "lib/validators")
-  const file = kebabCase(model.name)
-  return [
-    createOrReplace(ctx, join(dir, `${file}.ts`), validatorTemplate(model)),
-    createOrReplace(
-      ctx,
-      join(dir, `${file}.test.ts`),
-      validatorTestTemplate(model)
-    ),
-  ]
-}
 
 const emitService = (ctx: Context, model: ModelSpec): FileChange[] => {
   const src = sourceDir(ctx)

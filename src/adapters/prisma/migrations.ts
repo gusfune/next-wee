@@ -6,25 +6,17 @@
  * The reverse diff sits beside the up SQL as `down.sql`; `db:rollback`
  * prints the manual procedure that uses it.
  */
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  rmSync,
-} from "node:fs"
+import { cpSync, existsSync, mkdirSync, readdirSync } from "node:fs"
 import { join, relative } from "node:path"
 import { format, formatISO, parse } from "date-fns"
 import { x } from "tinyexec"
 import type { SchemaChange } from "../../core/adapters.js"
 import type { FileChange } from "../../core/changes.js"
 import { applyChanges } from "../../core/changes.js"
-import { CONFIG_DIR } from "../../core/config.js"
 import type { Context } from "../../core/context.js"
 import { WeeError } from "../../core/errors.js"
 import { packageBin } from "../../lib/packages.js"
-import { dbDirs } from "../shared.js"
+import { dbDirs, withScratch } from "../shared.js"
 
 const MIGRATION_DIR = /^(\d{14})_(.+)$/
 const STAMP = "yyyyMMddHHmmss"
@@ -103,25 +95,6 @@ const diffSql = async (options: DiffOptions): Promise<string | undefined> => {
     })
   }
   return result.stdout
-}
-
-/** Runs `fn` with a scratch folder under `.app/` that is removed afterwards. */
-const withScratch = async <T>(
-  ctx: Context,
-  fn: (scratch: string) => Promise<T>
-): Promise<T> => {
-  const configDir = join(ctx.target.path, CONFIG_DIR)
-  const hadConfigDir = existsSync(configDir)
-  mkdirSync(configDir, { recursive: true })
-  const scratch = mkdtempSync(join(configDir, "wee-"))
-  try {
-    return await fn(scratch)
-  } finally {
-    rmSync(scratch, { recursive: true, force: true })
-    if (!hadConfigDir) {
-      rmSync(configDir, { recursive: true, force: true })
-    }
-  }
 }
 
 interface MigrationFiles {
