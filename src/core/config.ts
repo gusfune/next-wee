@@ -3,11 +3,10 @@
  * `app.config.json`. Missing files fall back to defaults derived from the
  * target's file layout.
  */
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { z } from "zod"
 import type { FileChange } from "./changes.js"
-import { WeeError } from "./errors.js"
 import { readJsonFile } from "./json.js"
 
 const dbConfigSchema = z.object({

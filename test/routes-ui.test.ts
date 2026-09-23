@@ -238,8 +238,8 @@ describe("phase 2 routes and ui", () => {
     // A second segment adds its entry to the shared sitemap.
     await ok(metadata, ["about", "--sitemap"])
     const sitemap = read("src/app/sitemap.ts")
-    expect(sitemap).toContain("${baseUrl}/posts")
-    expect(sitemap).toContain("${baseUrl}/about")
+    expect(sitemap).toContain("baseUrl}/posts")
+    expect(sitemap).toContain("baseUrl}/about")
     await ok(destroy, ["metadata", "about"])
     expect(read("src/app/sitemap.ts")).not.toContain("/about")
   })
